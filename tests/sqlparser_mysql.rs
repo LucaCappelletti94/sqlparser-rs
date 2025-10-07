@@ -2601,7 +2601,7 @@ fn parse_insert_with_numeric_prefix_column_name() {
 fn parse_update_with_joins() {
     let sql = "UPDATE orders AS o JOIN customers AS c ON o.customer_id = c.id SET o.completed = true WHERE c.firstname = 'Peter'";
     match mysql().verified_stmt(sql) {
-        Statement::Update {
+        Statement::Update(Update {
             table,
             assignments,
             from: _from,
@@ -2609,7 +2609,7 @@ fn parse_update_with_joins() {
             returning,
             or: None,
             limit: None,
-        } => {
+        }) => {
             assert_eq!(
                 TableWithJoins {
                     relation: TableFactor::Table {
@@ -2727,7 +2727,7 @@ fn parse_delete_with_limit() {
 #[test]
 fn parse_alter_table_add_column() {
     match mysql().verified_stmt("ALTER TABLE tab ADD COLUMN b INT FIRST") {
-        Statement::AlterTable {
+        Statement::AlterTable(AlterTable {
             name,
             if_exists,
             only,
@@ -2736,7 +2736,7 @@ fn parse_alter_table_add_column() {
             location: _,
             on_cluster: _,
             end_token: _,
-        } => {
+        }) => {
             assert_eq!(name.to_string(), "tab");
             assert!(!if_exists);
             assert!(!iceberg);
@@ -2759,13 +2759,13 @@ fn parse_alter_table_add_column() {
     }
 
     match mysql().verified_stmt("ALTER TABLE tab ADD COLUMN b INT AFTER foo") {
-        Statement::AlterTable {
+        Statement::AlterTable(AlterTable {
             name,
             if_exists,
             only,
             operations,
             ..
-        } => {
+        }) => {
             assert_eq!(name.to_string(), "tab");
             assert!(!if_exists);
             assert!(!only);
@@ -2796,13 +2796,13 @@ fn parse_alter_table_add_columns() {
     match mysql()
         .verified_stmt("ALTER TABLE tab ADD COLUMN a TEXT FIRST, ADD COLUMN b INT AFTER foo")
     {
-        Statement::AlterTable {
+        Statement::AlterTable(AlterTable {
             name,
             if_exists,
             only,
             operations,
             ..
-        } => {
+        }) => {
             assert_eq!(name.to_string(), "tab");
             assert!(!if_exists);
             assert!(!only);
@@ -3024,7 +3024,7 @@ fn parse_alter_table_with_algorithm() {
         "ALTER TABLE users DROP COLUMN password_digest, ALGORITHM = COPY, RENAME COLUMN name TO username";
     let stmt = mysql_and_generic().verified_stmt(sql);
     match stmt {
-        Statement::AlterTable { operations, .. } => {
+        Statement::AlterTable(AlterTable { operations, .. }) => {
             assert_eq!(
                 operations,
                 vec![
@@ -3072,7 +3072,7 @@ fn parse_alter_table_with_lock() {
         "ALTER TABLE users DROP COLUMN password_digest, LOCK = EXCLUSIVE, RENAME COLUMN name TO username";
     let stmt = mysql_and_generic().verified_stmt(sql);
     match stmt {
-        Statement::AlterTable { operations, .. } => {
+        Statement::AlterTable(AlterTable { operations, .. }) => {
             assert_eq!(
                 operations,
                 vec![
@@ -3855,7 +3855,7 @@ fn parse_revoke() {
 fn parse_create_view_algorithm_param() {
     let sql = "CREATE ALGORITHM = MERGE VIEW foo AS SELECT 1";
     let stmt = mysql().verified_stmt(sql);
-    if let Statement::CreateView {
+    if let Statement::CreateView(CreateView {
         params:
             Some(CreateViewParams {
                 algorithm,
@@ -3863,7 +3863,7 @@ fn parse_create_view_algorithm_param() {
                 security,
             }),
         ..
-    } = stmt
+    }) = stmt
     {
         assert_eq!(algorithm, Some(CreateViewAlgorithm::Merge));
         assert!(definer.is_none());
@@ -3879,7 +3879,7 @@ fn parse_create_view_algorithm_param() {
 fn parse_create_view_definer_param() {
     let sql = "CREATE DEFINER = 'jeffrey'@'localhost' VIEW foo AS SELECT 1";
     let stmt = mysql().verified_stmt(sql);
-    if let Statement::CreateView {
+    if let Statement::CreateView(CreateView {
         params:
             Some(CreateViewParams {
                 algorithm,
@@ -3887,7 +3887,7 @@ fn parse_create_view_definer_param() {
                 security,
             }),
         ..
-    } = stmt
+    }) = stmt
     {
         assert!(algorithm.is_none());
         if let Some(GranteeName::UserHost { user, host }) = definer {
@@ -3908,7 +3908,7 @@ fn parse_create_view_definer_param() {
 fn parse_create_view_security_param() {
     let sql = "CREATE SQL SECURITY DEFINER VIEW foo AS SELECT 1";
     let stmt = mysql().verified_stmt(sql);
-    if let Statement::CreateView {
+    if let Statement::CreateView(CreateView {
         params:
             Some(CreateViewParams {
                 algorithm,
@@ -3916,7 +3916,7 @@ fn parse_create_view_security_param() {
                 security,
             }),
         ..
-    } = stmt
+    }) = stmt
     {
         assert!(algorithm.is_none());
         assert!(definer.is_none());
@@ -3931,7 +3931,7 @@ fn parse_create_view_security_param() {
 fn parse_create_view_multiple_params() {
     let sql = "CREATE ALGORITHM = UNDEFINED DEFINER = `root`@`%` SQL SECURITY INVOKER VIEW foo AS SELECT 1";
     let stmt = mysql().verified_stmt(sql);
-    if let Statement::CreateView {
+    if let Statement::CreateView(CreateView {
         params:
             Some(CreateViewParams {
                 algorithm,
@@ -3939,7 +3939,7 @@ fn parse_create_view_multiple_params() {
                 security,
             }),
         ..
-    } = stmt
+    }) = stmt
     {
         assert_eq!(algorithm, Some(CreateViewAlgorithm::Undefined));
         if let Some(GranteeName::UserHost { user, host }) = definer {
@@ -4177,7 +4177,7 @@ fn test_variable_assignment_using_colon_equal() {
     let stmt = mysql().verified_stmt(sql_update);
 
     match stmt {
-        Statement::Update { assignments, .. } => {
+        Statement::Update(Update { assignments, .. }) => {
             assert_eq!(
                 assignments,
                 vec![Assignment {

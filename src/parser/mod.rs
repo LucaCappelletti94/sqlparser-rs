@@ -982,11 +982,12 @@ impl<'a> Parser<'a> {
                 Ok(pa)
             })?
             .unwrap_or_default();
-        Ok(Statement::Msck {
+        Ok(Msck {
             repair,
             table_name,
             partition_action,
-        })
+        }
+        .into())
     }
 
     pub fn parse_truncate(&mut self) -> Result<Statement, ParserError> {
@@ -1024,14 +1025,15 @@ impl<'a> Parser<'a> {
 
         let on_cluster = self.parse_optional_on_cluster()?;
 
-        Ok(Statement::Truncate {
+        Ok(Truncate {
             table_names,
             partitions,
             table,
             identity,
             cascade,
             on_cluster,
-        })
+        }
+        .into())
     }
 
     fn parse_cascade_option(&mut self) -> Option<CascadeOption> {
@@ -1167,7 +1169,7 @@ impl<'a> Parser<'a> {
             }
         }
 
-        Ok(Statement::Analyze {
+        Ok(Analyze {
             has_table_keyword,
             table_name,
             for_columns,
@@ -1176,7 +1178,8 @@ impl<'a> Parser<'a> {
             cache_metadata,
             noscan,
             compute_statistics,
-        })
+        }
+        .into())
     }
 
     /// Parse a new expression including wildcard & qualified wildcard.
@@ -5943,7 +5946,7 @@ impl<'a> Parser<'a> {
                 Keyword::BINDING,
             ]);
 
-        Ok(Statement::CreateView {
+        Ok(CreateView {
             or_alter,
             name,
             columns,
@@ -5960,7 +5963,8 @@ impl<'a> Parser<'a> {
             to,
             params: create_view_params,
             name_before_not_exists,
-        })
+        }
+        .into())
     }
 
     /// Parse optional parameters for the `CREATE VIEW` statement supported by [MySQL].
@@ -6223,7 +6227,7 @@ impl<'a> Parser<'a> {
             }?
         }
 
-        Ok(Statement::CreateRole {
+        Ok(CreateRole {
             names,
             if_not_exists,
             login,
@@ -6242,7 +6246,8 @@ impl<'a> Parser<'a> {
             user,
             admin,
             authorization_owner,
-        })
+        }
+        .into())
     }
 
     pub fn parse_owner(&mut self) -> Result<Owner, ParserError> {
@@ -6520,11 +6525,11 @@ impl<'a> Parser<'a> {
         let if_exists = self.parse_keywords(&[Keyword::IF, Keyword::EXISTS]);
         let func_desc = self.parse_comma_separated(Parser::parse_function_desc)?;
         let drop_behavior = self.parse_optional_drop_behavior();
-        Ok(Statement::DropFunction {
+        Ok(Statement::DropFunction(DropFunction {
             if_exists,
             func_desc,
             drop_behavior,
-        })
+        }))
     }
 
     /// ```sql
@@ -7192,13 +7197,14 @@ impl<'a> Parser<'a> {
             (None, None, false)
         };
 
-        Ok(Statement::CreateExtension {
+        Ok(CreateExtension {
             name,
             if_not_exists,
             schema,
             version,
             cascade,
-        })
+        }
+        .into())
     }
 
     /// Parse a PostgreSQL-specific [Statement::DropExtension] statement.
@@ -7207,7 +7213,7 @@ impl<'a> Parser<'a> {
         let names = self.parse_comma_separated(|p| p.parse_identifier())?;
         let cascade_or_restrict =
             self.parse_one_of_keywords(&[Keyword::CASCADE, Keyword::RESTRICT]);
-        Ok(Statement::DropExtension {
+        Ok(Statement::DropExtension(DropExtension {
             names,
             if_exists,
             cascade_or_restrict: cascade_or_restrict
@@ -7217,7 +7223,7 @@ impl<'a> Parser<'a> {
                     _ => self.expected("CASCADE or RESTRICT", self.peek_token()),
                 })
                 .transpose()?,
-        })
+        }))
     }
 
     //TODO: Implement parsing for Skewed
@@ -9370,7 +9376,7 @@ impl<'a> Parser<'a> {
             self.get_current_token().clone()
         };
 
-        Ok(Statement::AlterTable {
+        Ok(AlterTable {
             name: table_name,
             if_exists,
             only,
@@ -9379,7 +9385,8 @@ impl<'a> Parser<'a> {
             on_cluster,
             iceberg,
             end_token: AttachedToken(end_token),
-        })
+        }
+        .into())
     }
 
     pub fn parse_alter_view(&mut self) -> Result<Statement, ParserError> {
@@ -15654,7 +15661,7 @@ impl<'a> Parser<'a> {
         } else {
             None
         };
-        Ok(Statement::Update {
+        Ok(Update {
             table,
             assignments,
             from,
@@ -15662,7 +15669,8 @@ impl<'a> Parser<'a> {
             returning,
             or,
             limit,
-        })
+        }
+        .into())
     }
 
     /// Parse a `var = expr` assignment, used in an UPDATE statement
