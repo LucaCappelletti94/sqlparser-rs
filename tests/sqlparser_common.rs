@@ -3790,13 +3790,17 @@ fn parse_create_table() {
                         data_type: DataType::Int(None),
                         options: vec![ColumnOptionDef {
                             name: None,
-                            option: ColumnOption::ForeignKey {
+                            option: ColumnOption::ForeignKey(ForeignKeyConstraint {
+                                name: None,
+                                index_name: None,
+                                columns: vec![],
                                 foreign_table: ObjectName::from(vec!["othertable".into()]),
                                 referred_columns: vec!["a".into(), "b".into()],
                                 on_delete: None,
                                 on_update: None,
+                                match_kind: None,
                                 characteristics: None,
-                            },
+                            }),
                         }],
                     },
                     ColumnDef {
@@ -3804,13 +3808,17 @@ fn parse_create_table() {
                         data_type: DataType::Int(None),
                         options: vec![ColumnOptionDef {
                             name: None,
-                            option: ColumnOption::ForeignKey {
+                            option: ColumnOption::ForeignKey(ForeignKeyConstraint {
+                                name: None,
+                                index_name: None,
+                                columns: vec![],
                                 foreign_table: ObjectName::from(vec!["othertable2".into()]),
                                 referred_columns: vec![],
                                 on_delete: Some(ReferentialAction::Cascade),
                                 on_update: Some(ReferentialAction::NoAction),
+                                match_kind: None,
                                 characteristics: None,
-                            },
+                            }),
                         },],
                     },
                 ]
@@ -3826,6 +3834,7 @@ fn parse_create_table() {
                         referred_columns: vec!["lat".into()],
                         on_delete: Some(ReferentialAction::Restrict),
                         on_update: None,
+                        match_kind: None,
                         characteristics: None,
                     }
                     .into(),
@@ -3837,6 +3846,7 @@ fn parse_create_table() {
                         referred_columns: vec!["lat".into()],
                         on_delete: Some(ReferentialAction::NoAction),
                         on_update: Some(ReferentialAction::Restrict),
+                        match_kind: None,
                         characteristics: None,
                     }
                     .into(),
@@ -3848,6 +3858,7 @@ fn parse_create_table() {
                         referred_columns: vec!["lat".into()],
                         on_delete: Some(ReferentialAction::Cascade),
                         on_update: Some(ReferentialAction::SetDefault),
+                        match_kind: None,
                         characteristics: None,
                     }
                     .into(),
@@ -3859,6 +3870,7 @@ fn parse_create_table() {
                         referred_columns: vec!["longitude".into()],
                         on_delete: None,
                         on_update: Some(ReferentialAction::SetNull),
+                        match_kind: None,
                         characteristics: None,
                     }
                     .into(),
@@ -3957,6 +3969,7 @@ fn parse_create_table_with_constraint_characteristics() {
                         referred_columns: vec!["lat".into()],
                         on_delete: Some(ReferentialAction::Restrict),
                         on_update: None,
+                        match_kind: None,
                         characteristics: Some(ConstraintCharacteristics {
                             deferrable: Some(true),
                             initially: Some(DeferrableInitial::Deferred),
@@ -3972,6 +3985,7 @@ fn parse_create_table_with_constraint_characteristics() {
                         referred_columns: vec!["lat".into()],
                         on_delete: Some(ReferentialAction::NoAction),
                         on_update: Some(ReferentialAction::Restrict),
+                        match_kind: None,
                         characteristics: Some(ConstraintCharacteristics {
                             deferrable: Some(true),
                             initially: Some(DeferrableInitial::Immediate),
@@ -3987,6 +4001,7 @@ fn parse_create_table_with_constraint_characteristics() {
                         referred_columns: vec!["lat".into()],
                         on_delete: Some(ReferentialAction::Cascade),
                         on_update: Some(ReferentialAction::SetDefault),
+                        match_kind: None,
                         characteristics: Some(ConstraintCharacteristics {
                             deferrable: Some(false),
                             initially: Some(DeferrableInitial::Deferred),
@@ -4002,6 +4017,7 @@ fn parse_create_table_with_constraint_characteristics() {
                         referred_columns: vec!["longitude".into()],
                         on_delete: None,
                         on_update: Some(ReferentialAction::SetNull),
+                        match_kind: None,
                         characteristics: Some(ConstraintCharacteristics {
                             deferrable: Some(false),
                             initially: Some(DeferrableInitial::Immediate),
@@ -16498,7 +16514,8 @@ fn parse_create_procedure_with_parameter_modes() {
                             span: fake_span,
                         },
                         data_type: DataType::Integer(None),
-                        mode: Some(ArgMode::In)
+                        mode: Some(ArgMode::In),
+                        default: None,
                     },
                     ProcedureParam {
                         name: Ident {
@@ -16507,7 +16524,8 @@ fn parse_create_procedure_with_parameter_modes() {
                             span: fake_span,
                         },
                         data_type: DataType::Text,
-                        mode: Some(ArgMode::Out)
+                        mode: Some(ArgMode::Out),
+                        default: None,
                     },
                     ProcedureParam {
                         name: Ident {
@@ -16516,7 +16534,8 @@ fn parse_create_procedure_with_parameter_modes() {
                             span: fake_span,
                         },
                         data_type: DataType::Timestamp(None, TimezoneInfo::None),
-                        mode: Some(ArgMode::InOut)
+                        mode: Some(ArgMode::InOut),
+                        default: None,
                     },
                     ProcedureParam {
                         name: Ident {
@@ -16525,9 +16544,56 @@ fn parse_create_procedure_with_parameter_modes() {
                             span: fake_span,
                         },
                         data_type: DataType::Bool,
-                        mode: None
+                        mode: None,
+                        default: None,
                     },
                 ])
+            );
+        }
+        _ => unreachable!(),
+    }
+
+    // parameters with default values
+    let sql = r#"CREATE PROCEDURE test_proc (IN a INTEGER = 1, OUT b TEXT = '2', INOUT c TIMESTAMP = NULL, d BOOL = 0) AS BEGIN SELECT 1; END"#;
+    match verified_stmt(sql) {
+        Statement::CreateProcedure {
+            or_alter,
+            name,
+            params,
+            ..
+        } => {
+            assert_eq!(or_alter, false);
+            assert_eq!(name.to_string(), "test_proc");
+            assert_eq!(
+                params,
+                Some(vec![
+                    ProcedureParam {
+                        name: Ident::new("a"),
+                        data_type: DataType::Integer(None),
+                        mode: Some(ArgMode::In),
+                        default: Some(Expr::Value((number("1")).with_empty_span())),
+                    },
+                    ProcedureParam {
+                        name: Ident::new("b"),
+                        data_type: DataType::Text,
+                        mode: Some(ArgMode::Out),
+                        default: Some(Expr::Value(
+                            Value::SingleQuotedString("2".into()).with_empty_span()
+                        )),
+                    },
+                    ProcedureParam {
+                        name: Ident::new("c"),
+                        data_type: DataType::Timestamp(None, TimezoneInfo::None),
+                        mode: Some(ArgMode::InOut),
+                        default: Some(Expr::Value(Value::Null.with_empty_span())),
+                    },
+                    ProcedureParam {
+                        name: Ident::new("d"),
+                        data_type: DataType::Bool,
+                        mode: None,
+                        default: Some(Expr::Value((number("0")).with_empty_span())),
+                    }
+                ]),
             );
         }
         _ => unreachable!(),
