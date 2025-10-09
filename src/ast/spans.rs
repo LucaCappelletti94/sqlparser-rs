@@ -744,7 +744,7 @@ impl Spanned for ColumnOption {
             ColumnOption::PrimaryKey(constraint) => constraint.span(),
             ColumnOption::Unique(constraint) => constraint.span(),
             ColumnOption::ForeignKey(constraint) => constraint.span(),
-            ColumnOption::Check(expr) => expr.span(),
+            ColumnOption::Check(constraint) => constraint.span(),
             ColumnOption::DialectSpecific(_) => Span::empty(),
             ColumnOption::CharacterSet(object_name) => object_name.span(),
             ColumnOption::Collation(object_name) => object_name.span(),
