@@ -728,7 +728,8 @@ impl Spanned for RaiseStatementValue {
 /// - [ColumnOption::Null]
 /// - [ColumnOption::NotNull]
 /// - [ColumnOption::Comment]
-/// - [ColumnOption::Unique]¨
+/// - [ColumnOption::PrimaryKey]
+/// - [ColumnOption::Unique]
 /// - [ColumnOption::DialectSpecific]
 /// - [ColumnOption::Generated]
 impl Spanned for ColumnOption {
@@ -740,7 +741,8 @@ impl Spanned for ColumnOption {
             ColumnOption::Materialized(expr) => expr.span(),
             ColumnOption::Ephemeral(expr) => expr.as_ref().map_or(Span::empty(), |e| e.span()),
             ColumnOption::Alias(expr) => expr.span(),
-            ColumnOption::Unique { .. } => Span::empty(),
+            ColumnOption::PrimaryKey(constraint) => constraint.span(),
+            ColumnOption::Unique(constraint) => constraint.span(),
             ColumnOption::ForeignKey(constraint) => constraint.span(),
             ColumnOption::Check(expr) => expr.span(),
             ColumnOption::DialectSpecific(_) => Span::empty(),
