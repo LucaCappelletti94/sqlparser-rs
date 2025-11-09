@@ -65,13 +65,14 @@ pub use self::ddl::{
     AlterTypeOperation, AlterTypeRename, AlterTypeRenameValue, ClusteredBy, ColumnDef,
     ColumnOption, ColumnOptionDef, ColumnOptions, ColumnPolicy, ColumnPolicyProperty,
     ConstraintCharacteristics, CreateConnector, CreateDomain, CreateExtension, CreateFunction,
-    CreateIndex, CreateTable, CreateTrigger, CreateView, Deduplicate, DeferrableInitial,
-    DropBehavior, DropExtension, DropFunction, DropTrigger, GeneratedAs, GeneratedExpressionMode,
-    IdentityParameters, IdentityProperty, IdentityPropertyFormatKind, IdentityPropertyKind,
-    IdentityPropertyOrder, IndexColumn, IndexOption, IndexType, KeyOrIndexDisplay, Msck,
-    NullsDistinctOption, Owner, Partition, ProcedureParam, ReferentialAction, RenameTableNameKind,
-    ReplicaIdentity, TagsColumnOption, TriggerObjectKind, Truncate,
-    UserDefinedTypeCompositeAttributeDef, UserDefinedTypeInternalLength,
+    CreateIndex, CreateOperator, CreateOperatorClass, CreateOperatorFamily, CreateTable,
+    CreateTrigger, CreateView, Deduplicate, DeferrableInitial, DropBehavior, DropExtension,
+    DropFunction, DropTrigger, GeneratedAs, GeneratedExpressionMode, IdentityParameters,
+    IdentityProperty, IdentityPropertyFormatKind, IdentityPropertyKind, IdentityPropertyOrder,
+    IndexColumn, IndexOption, IndexType, KeyOrIndexDisplay, Msck, NullsDistinctOption,
+    OperatorArgTypes, OperatorClassItem, OperatorPurpose, Owner, Partition, ProcedureParam,
+    ReferentialAction, RenameTableNameKind, ReplicaIdentity, TagsColumnOption, TriggerObjectKind,
+    Truncate, UserDefinedTypeCompositeAttributeDef, UserDefinedTypeInternalLength,
     UserDefinedTypeRangeOption, UserDefinedTypeRepresentation, UserDefinedTypeSqlDefinitionOption,
     UserDefinedTypeStorage, ViewColumnDef,
 };
@@ -3337,6 +3338,21 @@ pub enum Statement {
     /// See [Hive](https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=27362034#LanguageManualDDL-CreateDataConnectorCreateConnector)
     CreateConnector(CreateConnector),
     /// ```sql
+    /// CREATE OPERATOR
+    /// ```
+    /// See [PostgreSQL](https://www.postgresql.org/docs/current/sql-createoperator.html)
+    CreateOperator(CreateOperator),
+    /// ```sql
+    /// CREATE OPERATOR FAMILY
+    /// ```
+    /// See [PostgreSQL](https://www.postgresql.org/docs/current/sql-createopfamily.html)
+    CreateOperatorFamily(CreateOperatorFamily),
+    /// ```sql
+    /// CREATE OPERATOR CLASS
+    /// ```
+    /// See [PostgreSQL](https://www.postgresql.org/docs/current/sql-createopclass.html)
+    CreateOperatorClass(CreateOperatorClass),
+    /// ```sql
     /// ALTER TABLE
     /// ```
     AlterTable(AlterTable),
@@ -4883,6 +4899,11 @@ impl fmt::Display for Statement {
                 Ok(())
             }
             Statement::CreateConnector(create_connector) => create_connector.fmt(f),
+            Statement::CreateOperator(create_operator) => create_operator.fmt(f),
+            Statement::CreateOperatorFamily(create_operator_family) => {
+                create_operator_family.fmt(f)
+            }
+            Statement::CreateOperatorClass(create_operator_class) => create_operator_class.fmt(f),
             Statement::AlterTable(alter_table) => write!(f, "{alter_table}"),
             Statement::AlterIndex { name, operation } => {
                 write!(f, "ALTER INDEX {name} {operation}")
