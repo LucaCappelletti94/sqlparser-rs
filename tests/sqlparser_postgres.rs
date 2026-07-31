@@ -10126,3 +10126,32 @@ fn parse_bitstring_literal_escaping() {
     pg_and_generic().verified_stmt("SELECT B''''");
     pg_and_generic().verified_stmt("SELECT B'it''s'");
 }
+
+#[test]
+fn parse_copy_from_stdin_payload_rows() {
+    fn payload(sql: &str) -> Vec<Vec<Option<String>>> {
+        let Statement::Copy { values, .. } = pg().verified_stmt(sql) else {
+            panic!("expected a COPY statement");
+        };
+        values
+    }
+
+    // Rows keep their boundaries, and `\N` is a null field rather than an extra one.
+    assert_eq!(
+        payload("COPY t (a, b) FROM STDIN;\n1\t\\N\n2\ty\n\\."),
+        vec![
+            vec![Some("1".to_string()), None],
+            vec![Some("2".to_string()), Some("y".to_string())],
+        ]
+    );
+    // An empty field is not a null one.
+    assert_eq!(
+        payload("COPY t (a, b) FROM STDIN;\n\t\\N\n\\."),
+        vec![vec![Some(String::new()), None]]
+    );
+    // A row of empty fields is still a row.
+    assert_eq!(
+        payload("COPY t (a) FROM STDIN;\n\n\\."),
+        vec![vec![Some(String::new())]]
+    );
+}
