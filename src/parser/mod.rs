@@ -12353,29 +12353,50 @@ impl<'a> Parser<'a> {
 
     /// Parse a tab separated values in
     /// COPY payload
-    pub fn parse_tsv(&mut self) -> Vec<Option<String>> {
+    pub fn parse_tsv(&mut self) -> Vec<Vec<Option<String>>> {
         self.parse_tab_value()
     }
 
-    /// Parse a single tab-separated value row used by `COPY` payload parsing.
-    pub fn parse_tab_value(&mut self) -> Vec<Option<String>> {
-        let mut values = vec![];
+    /// Parse the tab separated payload rows of a `COPY ... FROM STDIN`.
+    ///
+    /// A tab ends a field, a newline ends a row, and `\N` is a null field.
+    pub fn parse_tab_value(&mut self) -> Vec<Vec<Option<String>>> {
+        /// Take the field accumulated so far, `None` when it was `\N`.
+        fn take_field(content: &mut String, is_null: &mut bool) -> Option<String> {
+            if core::mem::take(is_null) {
+                content.clear();
+                None
+            } else {
+                Some(core::mem::take(content))
+            }
+        }
+
+        // The newline closing the `COPY ... ;` header opens the payload, so it
+        // is not a row terminator. Every later newline is.
+        if self.peek_token_no_skip().token == Token::Whitespace(Whitespace::Newline) {
+            self.next_token_no_skip();
+        }
+
+        let mut rows = vec![];
+        let mut row: Vec<Option<String>> = vec![];
         let mut content = String::new();
+        let mut is_null = false;
         while let Some(t) = self.next_token_no_skip().map(|t| &t.token) {
             match t {
                 Token::Whitespace(Whitespace::Tab) => {
-                    values.push(Some(core::mem::take(&mut content)));
+                    row.push(take_field(&mut content, &mut is_null));
                 }
                 Token::Whitespace(Whitespace::Newline) => {
-                    values.push(Some(core::mem::take(&mut content)));
+                    row.push(take_field(&mut content, &mut is_null));
+                    rows.push(core::mem::take(&mut row));
                 }
                 Token::Backslash => {
                     if self.consume_token(&Token::Period) {
-                        return values;
+                        break;
                     }
                     if let Token::Word(w) = self.next_token().token {
                         if w.value == "N" {
-                            values.push(None);
+                            is_null = true;
                         }
                     }
                 }
@@ -12384,7 +12405,11 @@ impl<'a> Parser<'a> {
                 }
             }
         }
-        values
+        if !row.is_empty() || !content.is_empty() || is_null {
+            row.push(take_field(&mut content, &mut is_null));
+            rows.push(row);
+        }
+        rows
     }
 
     /// Parse a literal value (numbers, strings, date/time, booleans)
@@ -21337,7 +21362,6 @@ mod tests {
                     unit: None
                 }))
             );
-
             test_parse_data_type!(
                 dialect,
                 "CHAR(20 CHARACTERS)",

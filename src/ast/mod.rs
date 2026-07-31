@@ -3650,8 +3650,9 @@ pub enum Statement {
         options: Vec<CopyOption>,
         /// WITH options (before PostgreSQL version 9.0)
         legacy_options: Vec<CopyLegacyOption>,
-        /// VALUES a vector of values to be copied
-        values: Vec<Option<String>>,
+        /// The inline payload of `COPY ... FROM STDIN`, one inner vector per
+        /// row, where `None` is the `\N` null field.
+        values: Vec<Vec<Option<String>>>,
     },
     /// ```sql
     /// COPY INTO <table> | <location>
@@ -5349,17 +5350,19 @@ impl fmt::Display for Statement {
                 }
                 if !values.is_empty() {
                     writeln!(f, ";")?;
-                    let mut delim = "";
-                    for v in values {
-                        write!(f, "{delim}")?;
-                        delim = "\t";
-                        if let Some(v) = v {
-                            write!(f, "{v}")?;
-                        } else {
-                            write!(f, "\\N")?;
+                    for row in values {
+                        let mut delim = "";
+                        for field in row {
+                            write!(f, "{delim}")?;
+                            delim = "\t";
+                            match field {
+                                Some(field) => write!(f, "{field}")?,
+                                None => write!(f, "\\N")?,
+                            }
                         }
+                        writeln!(f)?;
                     }
-                    write!(f, "\n\\.")?;
+                    write!(f, "\\.")?;
                 }
                 Ok(())
             }
