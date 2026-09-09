@@ -968,6 +968,8 @@ impl<'a> Tokenizer<'a> {
             line: 1,
             col: 1,
         };
+        // Tokens, whitespace included, average about 2.5 input bytes each.
+        buf.reserve(self.query.len() / 2);
 
         let mut location = state.location();
         while let Some(token) = self.next_token(&mut state, buf.last().map(|t| &t.token))? {
@@ -1043,7 +1045,6 @@ impl<'a> Tokenizer<'a> {
         chars: &mut State,
     ) -> Result<Option<Token>, TokenizerError> {
         chars.next(); // consume the first char
-        let ch: String = ch.into_iter().collect();
         let word = self.tokenize_word(ch, chars);
 
         // TODO: implement parsing of exponent here
@@ -1116,7 +1117,7 @@ impl<'a> Tokenizer<'a> {
                         }
                         _ => {
                             // regular identifier starting with an "b" or "B"
-                            let s = self.tokenize_word(b, chars);
+                            let s = self.tokenize_word([b], chars);
                             Ok(Some(Token::make_word_owned(s, None)))
                         }
                     }
@@ -1143,7 +1144,7 @@ impl<'a> Tokenizer<'a> {
                             ),
                         _ => {
                             // regular identifier starting with an "r" or "R"
-                            let s = self.tokenize_word(b, chars);
+                            let s = self.tokenize_word([b], chars);
                             Ok(Some(Token::make_word_owned(s, None)))
                         }
                     }
@@ -1168,13 +1169,13 @@ impl<'a> Tokenizer<'a> {
                                 self.tokenize_quote_delimited_string(chars, &[n, q])
                                     .map(|s| Some(Token::NationalQuoteDelimitedStringLiteral(s)))
                             } else {
-                                let s = self.tokenize_word(String::from_iter([n, q]), chars);
+                                let s = self.tokenize_word([n, q], chars);
                                 Ok(Some(Token::make_word_owned(s, None)))
                             }
                         }
                         _ => {
                             // regular identifier starting with an "N"
-                            let s = self.tokenize_word(n, chars);
+                            let s = self.tokenize_word([n], chars);
                             Ok(Some(Token::make_word_owned(s, None)))
                         }
                     }
@@ -1185,7 +1186,7 @@ impl<'a> Tokenizer<'a> {
                         self.tokenize_quote_delimited_string(chars, &[q])
                             .map(|s| Some(Token::QuoteDelimitedStringLiteral(s)))
                     } else {
-                        let s = self.tokenize_word(q, chars);
+                        let s = self.tokenize_word([q], chars);
                         Ok(Some(Token::make_word_owned(s, None)))
                     }
                 }
@@ -1201,7 +1202,7 @@ impl<'a> Tokenizer<'a> {
                         }
                         _ => {
                             // regular identifier starting with an "E" or "e"
-                            let s = self.tokenize_word(x, chars);
+                            let s = self.tokenize_word([x], chars);
                             Ok(Some(Token::make_word_owned(s, None)))
                         }
                     }
@@ -1220,7 +1221,7 @@ impl<'a> Tokenizer<'a> {
                         }
                     }
                     // regular identifier starting with an "U" or "u"
-                    let s = self.tokenize_word(x, chars);
+                    let s = self.tokenize_word([x], chars);
                     Ok(Some(Token::make_word_owned(s, None)))
                 }
                 // The spec only allows an uppercase 'X' to introduce a hex
@@ -1235,7 +1236,7 @@ impl<'a> Tokenizer<'a> {
                         }
                         _ => {
                             // regular identifier starting with an "X"
-                            let s = self.tokenize_word(x, chars);
+                            let s = self.tokenize_word([x], chars);
                             Ok(Some(Token::make_word_owned(s, None)))
                         }
                     }
@@ -2062,11 +2063,14 @@ impl<'a> Tokenizer<'a> {
     }
 
     /// Tokenize an identifier or keyword, after the first char is already consumed.
-    fn tokenize_word(&self, first_chars: impl Into<String>, chars: &mut State) -> String {
-        let mut s = first_chars.into();
-        s.push_str(&peeking_take_while(chars, |ch| {
-            self.dialect.is_identifier_part(ch)
-        }));
+    fn tokenize_word(
+        &self,
+        first_chars: impl IntoIterator<Item = char>,
+        chars: &mut State,
+    ) -> String {
+        let mut s = String::new();
+        s.extend(first_chars);
+        peeking_take_while_into(chars, &mut s, |ch| self.dialect.is_identifier_part(ch));
         s
     }
 
@@ -2415,17 +2419,25 @@ impl<'a> Tokenizer<'a> {
 /// Read from `chars` until `predicate` returns `false` or EOF is hit.
 /// Return the characters read as String, and keep the first non-matching
 /// char available as `chars.next()`.
-fn peeking_take_while(chars: &mut State, mut predicate: impl FnMut(char) -> bool) -> String {
+fn peeking_take_while(chars: &mut State, predicate: impl FnMut(char) -> bool) -> String {
     let mut s = String::new();
+    peeking_take_while_into(chars, &mut s, predicate);
+    s
+}
+
+/// [`peeking_take_while`] appending into an existing buffer.
+fn peeking_take_while_into(
+    chars: &mut State,
+    s: &mut String,
+    mut predicate: impl FnMut(char) -> bool,
+) {
     while let Some(&ch) = chars.peek() {
-        if predicate(ch) {
-            chars.next(); // consume
-            s.push(ch);
-        } else {
+        if !predicate(ch) {
             break;
         }
+        chars.next(); // consume
+        s.push(ch);
     }
-    s
 }
 
 fn unescape_single_quoted_string(chars: &mut State<'_>) -> Option<String> {
