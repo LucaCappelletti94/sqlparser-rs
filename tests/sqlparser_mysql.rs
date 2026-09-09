@@ -349,7 +349,9 @@ fn parse_show_columns() {
                     parent_name: Some(ObjectName::from(vec![Ident::new("mytable")])),
                 }),
                 filter_position: Some(ShowStatementFilterPosition::Suffix(
-                    ShowStatementFilter::Where(mysql_and_generic().verified_expr("1 = 2"))
+                    ShowStatementFilter::Where(Box::new(
+                        mysql_and_generic().verified_expr("1 = 2")
+                    ))
                 )),
                 limit_from: None,
                 limit: None,
@@ -402,9 +404,9 @@ fn parse_show_status() {
     assert_eq!(
         mysql_and_generic().verified_stmt("SHOW STATUS WHERE value = 2"),
         Statement::ShowStatus {
-            filter: Some(ShowStatementFilter::Where(
+            filter: Some(ShowStatementFilter::Where(Box::new(
                 mysql_and_generic().verified_expr("value = 2")
-            )),
+            ))),
             session: false,
             global: false
         }
@@ -518,7 +520,9 @@ fn parse_show_tables() {
                 limit_from: None,
                 show_in: None,
                 filter_position: Some(ShowStatementFilterPosition::Suffix(
-                    ShowStatementFilter::Where(mysql_and_generic().verified_expr("1 = 2"))
+                    ShowStatementFilter::Where(Box::new(
+                        mysql_and_generic().verified_expr("1 = 2")
+                    ))
                 ))
             }
         }
@@ -584,9 +588,9 @@ fn parse_show_collation() {
     assert_eq!(
         mysql_and_generic().verified_stmt("SHOW COLLATION WHERE 1 = 2"),
         Statement::ShowCollation {
-            filter: Some(ShowStatementFilter::Where(
+            filter: Some(ShowStatementFilter::Where(Box::new(
                 mysql_and_generic().verified_expr("1 = 2")
-            )),
+            ))),
         }
     );
 }
@@ -2784,17 +2788,19 @@ fn parse_update_with_joins() {
                             index_hints: vec![],
                         },
                         global: false,
-                        join_operator: JoinOperator::Join(JoinConstraint::On(Expr::BinaryOp {
-                            left: Box::new(Expr::CompoundIdentifier(vec![
-                                Ident::new("o"),
-                                Ident::new("customer_id")
-                            ])),
-                            op: BinaryOperator::Eq,
-                            right: Box::new(Expr::CompoundIdentifier(vec![
-                                Ident::new("c"),
-                                Ident::new("id")
-                            ]))
-                        })),
+                        join_operator: JoinOperator::Join(JoinConstraint::On(Box::new(
+                            Expr::BinaryOp {
+                                left: Box::new(Expr::CompoundIdentifier(vec![
+                                    Ident::new("o"),
+                                    Ident::new("customer_id")
+                                ])),
+                                op: BinaryOperator::Eq,
+                                right: Box::new(Expr::CompoundIdentifier(vec![
+                                    Ident::new("c"),
+                                    Ident::new("id")
+                                ]))
+                            }
+                        ))),
                     }]
                 },
                 table
@@ -3969,14 +3975,14 @@ fn parse_json_table() {
             json_expr: Expr::Value((Value::SingleQuotedString("[1,2]".to_string())).with_empty_span()),
             json_path: Value::SingleQuotedString("$[*]".to_string()).with_empty_span(),
             columns: vec![
-                JsonTableColumn::Named(JsonTableNamedColumn {
+                JsonTableColumn::Named(Box::new(JsonTableNamedColumn {
                     name: Ident::new("x"),
                     r#type: DataType::Int(None),
                     path: Value::SingleQuotedString("$".to_string()).with_empty_span(),
                     exists: false,
                     on_empty: Some(JsonTableColumnErrorHandling::Default(Value::SingleQuotedString("0".to_string()).with_empty_span())),
                     on_error: Some(JsonTableColumnErrorHandling::Null),
-                }),
+                })),
             ],
             alias: table_alias(true, "t"),
         }

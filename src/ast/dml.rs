@@ -934,7 +934,7 @@ pub struct MultiTableInsertValues {
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub enum MultiTableInsertValue {
     /// A column reference or expression from the source
-    Expr(Expr),
+    Expr(Box<Expr>),
     /// The DEFAULT keyword
     Default,
 }

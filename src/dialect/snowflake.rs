@@ -418,12 +418,15 @@ impl Dialect for SnowflakeDialect {
             let with = parser.parse_keyword(Keyword::WITH);
 
             if parser.parse_keyword(Keyword::IDENTITY) {
-                Ok(parse_identity_property(parser)
-                    .map(|p| Some(ColumnOption::Identity(IdentityPropertyKind::Identity(p)))))
+                Ok(parse_identity_property(parser).map(|p| {
+                    Some(ColumnOption::Identity(Box::new(
+                        IdentityPropertyKind::Identity(p),
+                    )))
+                }))
             } else if parser.parse_keyword(Keyword::AUTOINCREMENT) {
                 Ok(parse_identity_property(parser).map(|p| {
-                    Some(ColumnOption::Identity(IdentityPropertyKind::Autoincrement(
-                        p,
+                    Some(ColumnOption::Identity(Box::new(
+                        IdentityPropertyKind::Autoincrement(p),
                     )))
                 }))
             } else if parser.parse_keywords(&[Keyword::MASKING, Keyword::POLICY]) {
@@ -1943,7 +1946,7 @@ fn parse_multi_table_insert_value(
     if parser.parse_keyword(Keyword::DEFAULT) {
         Ok(MultiTableInsertValue::Default)
     } else {
-        Ok(MultiTableInsertValue::Expr(parser.parse_expr()?))
+        Ok(MultiTableInsertValue::Expr(Box::new(parser.parse_expr()?)))
     }
 }
 

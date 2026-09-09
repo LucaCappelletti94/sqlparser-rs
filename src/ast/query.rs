@@ -854,7 +854,7 @@ pub enum SelectItemQualifiedWildcardKind {
     ObjectName(ObjectName),
     /// Select star on an arbitrary expression.
     /// e.g. `STRUCT<STRING>('foo').*`
-    Expr(Expr),
+    Expr(Box<Expr>),
 }
 
 /// One item of the comma-separated list following `SELECT`
@@ -1139,7 +1139,7 @@ impl fmt::Display for ExceptSelectItem {
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct ReplaceSelectItem {
     /// List of replacement elements contained in the `REPLACE(...)` clause.
-    pub items: Vec<Box<ReplaceSelectElement>>,
+    pub items: Vec<ReplaceSelectElement>,
 }
 
 impl fmt::Display for ReplaceSelectItem {
@@ -1482,7 +1482,7 @@ pub enum TableFactor {
         with_hints: Vec<Expr>,
         /// Optional version qualifier to facilitate table time-travel, as
         /// supported by BigQuery and MSSQL.
-        version: Option<TableVersion>,
+        version: Option<Box<TableVersion>>,
         //  Optional table function modifier to generate the ordinality for column.
         /// For example, `SELECT * FROM generate_series(1, 10) WITH ORDINALITY AS t(a, b);`
         /// [WITH ORDINALITY](https://www.postgresql.org/docs/current/functions-srf.html), supported by Postgres.
@@ -2649,9 +2649,9 @@ pub enum TableVersion {
         /// The `CHANGES(INFORMATION => ...)` function-call expression.
         changes: Expr,
         /// The `AT(TIMESTAMP => ...)` function-call expression.
-        at: Expr,
+        at: Box<Expr>,
         /// The optional `END(TIMESTAMP => ...)` function-call expression.
-        end: Option<Expr>,
+        end: Option<Box<Expr>>,
     },
 }
 
@@ -2866,9 +2866,9 @@ pub enum JoinOperator {
     /// See <https://docs.snowflake.com/en/sql-reference/constructs/asof-join>.
     AsOf {
         /// Condition used to match records in the `ASOF` join.
-        match_condition: Expr,
+        match_condition: Box<Expr>,
         /// Additional constraint applied to the `ASOF` join.
-        constraint: JoinConstraint,
+        constraint: Box<JoinConstraint>,
     },
     /// `STRAIGHT_JOIN` (MySQL non-standard behavior)
     ///
@@ -2890,7 +2890,7 @@ pub enum JoinOperator {
 /// Represents how two tables are constrained in a join: `ON`, `USING`, `NATURAL`, or none.
 pub enum JoinConstraint {
     /// `ON <expr>` join condition.
-    On(Expr),
+    On(Box<Expr>),
     /// `USING(...)` list of column names.
     Using(Vec<ObjectName>),
     /// `NATURAL` join (columns matched automatically).
@@ -3396,7 +3396,7 @@ pub enum PipeOperator {
     /// Syntax: `|> [JOIN_TYPE] JOIN <table> [alias] ON <condition>` or `|> [JOIN_TYPE] JOIN <table> [alias] USING (<columns>)`
     ///
     /// See more at <https://cloud.google.com/bigquery/docs/reference/standard-sql/pipe-syntax#join_pipe_operator>
-    Join(Join),
+    Join(Box<Join>),
 }
 
 impl fmt::Display for PipeOperator {
@@ -3680,7 +3680,7 @@ pub struct Top {
 /// Quantity used in a `TOP` clause: either an expression or a constant.
 pub enum TopQuantity {
     /// A parenthesized expression (MSSQL syntax: `TOP (expr)`).
-    Expr(Expr),
+    Expr(Box<Expr>),
     /// An unparenthesized integer constant: `TOP 10`.
     Constant(u64),
 }
@@ -3788,7 +3788,7 @@ pub enum GroupByWithModifier {
     /// Hive supports GROUPING SETS syntax, e.g. `GROUP BY GROUPING SETS(...)`.
     ///
     /// [Hive]: <https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=30151323#EnhancedAggregation,Cube,GroupingandRollup-GROUPINGSETSclause>
-    GroupingSets(Expr),
+    GroupingSets(Box<Expr>),
 }
 
 impl fmt::Display for GroupByWithModifier {
@@ -4061,7 +4061,7 @@ impl fmt::Display for ForJson {
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum JsonTableColumn {
     /// A named column with a JSON path
-    Named(JsonTableNamedColumn),
+    Named(Box<JsonTableNamedColumn>),
     /// The FOR ORDINALITY column, which is a special column that returns the index of the current row in a JSON array.
     ForOrdinality(Ident),
     /// A set of nested columns, which extracts data from a nested JSON array.
@@ -4268,9 +4268,9 @@ pub enum XmlTableColumnOption {
         /// The type of the column to be extracted.
         r#type: DataType,
         /// The path to the column to be extracted. If None, defaults to the column name.
-        path: Option<Expr>,
+        path: Option<Box<Expr>>,
         /// Default value if path does not match
-        default: Option<Expr>,
+        default: Option<Box<Expr>>,
         /// Whether the column is nullable (NULL=true, NOT NULL=false)
         nullable: bool,
     },

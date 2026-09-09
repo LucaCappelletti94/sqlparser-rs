@@ -1440,9 +1440,9 @@ pub enum Subscript {
         /// Optional lower bound for the slice (inclusive).
         lower_bound: Option<Expr>,
         /// Optional upper bound for the slice (inclusive).
-        upper_bound: Option<Expr>,
+        upper_bound: Option<Box<Expr>>,
         /// Optional stride for the slice (step size).
-        stride: Option<Expr>,
+        stride: Option<Box<Expr>>,
     },
 }
 
@@ -1474,6 +1474,9 @@ impl fmt::Display for Subscript {
 
 /// An element of a [`Expr::CompoundFieldAccess`].
 /// It can be an expression or a subscript.
+// Dot(Expr) cannot be boxed: it is used in deeply-nested patterns such as
+// `AccessExpr::Dot(Expr::Function(..))` and as a fn-pointer via `.map(AccessExpr::Dot)`.
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
@@ -1481,7 +1484,7 @@ pub enum AccessExpr {
     /// Accesses a field using dot notation, e.g. `foo.bar.baz`.
     Dot(Expr),
     /// Accesses a field or array element using bracket notation, e.g. `foo['bar']`.
-    Subscript(Subscript),
+    Subscript(Box<Subscript>),
 }
 
 impl fmt::Display for AccessExpr {
@@ -2588,7 +2591,7 @@ impl fmt::Display for CommentObject {
 /// Password specification variants used in user-related statements.
 pub enum Password {
     /// A concrete password expression.
-    Password(Expr),
+    Password(Box<Expr>),
     /// Represents a `NULL` password.
     NullPassword,
 }
@@ -6813,7 +6816,7 @@ pub enum MinMaxValue {
     /// NO MINVALUE / NO MAXVALUE.
     None,
     /// `MINVALUE <expr>` / `MAXVALUE <expr>`.
-    Some(Expr),
+    Some(Box<Expr>),
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
@@ -6825,7 +6828,7 @@ pub enum OnInsert {
     /// ON DUPLICATE KEY UPDATE (MySQL when the key already exists, then execute an update instead)
     DuplicateKeyUpdate(Vec<Assignment>),
     /// ON CONFLICT is a PostgreSQL and Sqlite extension
-    OnConflict(OnConflict),
+    OnConflict(Box<OnConflict>),
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
@@ -6878,7 +6881,7 @@ pub enum OnConflictAction {
     /// Do nothing on conflict.
     DoNothing,
     /// Perform an update on conflict.
-    DoUpdate(DoUpdate),
+    DoUpdate(Box<DoUpdate>),
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
@@ -9343,7 +9346,7 @@ pub enum ShowStatementFilter {
     /// Filter using ILIKE pattern.
     ILike(String),
     /// Filter using a WHERE expression.
-    Where(Expr),
+    Where(Box<Expr>),
     /// Filter provided without a keyword (raw string).
     NoKeyword(String),
 }
@@ -10333,7 +10336,7 @@ pub enum CreateFunctionBody {
         /// AS 'MODULE_PATHNAME', 'cas_in_wrapper'
         /// ```
         /// [PostgreSQL]: https://www.postgresql.org/docs/current/sql-createfunction.html
-        link_symbol: Option<Expr>,
+        link_symbol: Option<Box<Expr>>,
     },
     /// A function body expression using the 'AS' keyword and shows up
     /// after any `OPTIONS` clause.
@@ -10397,7 +10400,7 @@ pub enum CreateFunctionBody {
     /// ```
     ///
     /// [MsSql]: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-function-transact-sql?view=sql-server-ver16#select_stmt
-    AsReturnSelect(Select),
+    AsReturnSelect(Box<Select>),
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
@@ -10464,7 +10467,7 @@ impl fmt::Display for MacroArg {
 /// Definition for a DuckDB macro: either an expression or a table-producing query.
 pub enum MacroDefinition {
     /// The macro is defined as an expression.
-    Expr(Expr),
+    Expr(Box<Expr>),
     /// The macro is defined as a table (query).
     Table(Box<Query>),
 }
@@ -11206,7 +11209,7 @@ pub enum TableObject {
     /// INSERT INTO TABLE FUNCTION remote('localhost', default.simple_table)
     /// ```
     /// [Clickhouse](https://clickhouse.com/docs/en/sql-reference/table-functions)
-    TableFunction(Function),
+    TableFunction(Box<Function>),
 
     /// Table specified through a sub-query
     /// Example:

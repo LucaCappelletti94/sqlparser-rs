@@ -201,11 +201,11 @@ fn test_create_macro() {
         temporary: false,
         name: ObjectName::from(vec![Ident::new("schema"), Ident::new("add")]),
         args: Some(vec![MacroArg::new("a"), MacroArg::new("b")]),
-        definition: MacroDefinition::Expr(Expr::BinaryOp {
+        definition: MacroDefinition::Expr(Box::new(Expr::BinaryOp {
             left: Box::new(Expr::Identifier(Ident::new("a"))),
             op: BinaryOperator::Plus,
             right: Box::new(Expr::Identifier(Ident::new("b"))),
-        }),
+        })),
     };
     assert_eq!(expected, macro_);
 }
@@ -224,11 +224,11 @@ fn test_create_macro_default_args() {
                 default_expr: Some(Expr::value(number("5"))),
             },
         ]),
-        definition: MacroDefinition::Expr(Expr::BinaryOp {
+        definition: MacroDefinition::Expr(Box::new(Expr::BinaryOp {
             left: Box::new(Expr::Identifier(Ident::new("a"))),
             op: BinaryOperator::Plus,
             right: Box::new(Expr::Identifier(Ident::new("b"))),
-        }),
+        })),
     };
     assert_eq!(expected, macro_);
 }
@@ -686,9 +686,9 @@ fn test_array_index() {
                 ],
                 named: false
             })),
-            access_chain: vec![AccessExpr::Subscript(Subscript::Index {
+            access_chain: vec![AccessExpr::Subscript(Box::new(Subscript::Index {
                 index: Expr::value(number("3"))
-            })]
+            }))]
         },
         expr
     );

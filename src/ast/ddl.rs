@@ -561,9 +561,9 @@ pub enum AlterPolicyOperation {
         /// Optional list of owners the policy applies to.
         to: Option<Vec<Owner>>,
         /// Optional `USING` expression for the policy.
-        using: Option<Expr>,
+        using: Option<Box<Expr>>,
         /// Optional `WITH CHECK` expression for the policy.
-        with_check: Option<Expr>,
+        with_check: Option<Box<Expr>>,
     },
 }
 
@@ -1982,7 +1982,7 @@ pub enum ColumnOption {
     /// ```
     /// [MS SQL Server]: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-table-transact-sql-identity-property
     /// [Snowflake]: https://docs.snowflake.com/en/sql-reference/sql/create-table
-    Identity(IdentityPropertyKind),
+    Identity(Box<IdentityPropertyKind>),
     /// SQLite specific: ON CONFLICT option on column definition
     /// <https://www.sqlite.org/lang_conflict.html>
     OnConflict(Keyword),
@@ -2770,7 +2770,7 @@ pub enum Deduplicate {
     /// DEDUPLICATE ALL
     All,
     /// DEDUPLICATE BY expr
-    ByExpression(Expr),
+    ByExpression(Box<Expr>),
 }
 
 impl fmt::Display for Deduplicate {
@@ -3528,7 +3528,7 @@ impl fmt::Display for ForValues {
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub enum PartitionBoundValue {
     /// An expression representing a partition bound value.
-    Expr(Expr),
+    Expr(Box<Expr>),
     /// Represents negative infinity in partition bounds.
     MinValue,
     /// Represents positive infinity in partition bounds.

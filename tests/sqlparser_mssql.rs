@@ -68,9 +68,9 @@ fn parse_table_time_travel() {
                 alias: None,
                 args: None,
                 with_hints: vec![],
-                version: Some(TableVersion::ForSystemTimeAsOf(Expr::Value(
+                version: Some(Box::new(TableVersion::ForSystemTimeAsOf(Expr::Value(
                     (Value::SingleQuotedString(version)).with_empty_span()
-                ))),
+                )))),
                 partitions: vec![],
                 with_ordinality: false,
                 json_path: None,
@@ -711,9 +711,9 @@ fn parse_mssql_top_paren() {
     let select = ms_and_generic().verified_only_select(sql);
     let top = select.top.unwrap();
     assert_eq!(
-        Some(TopQuantity::Expr(Expr::Value(
+        Some(TopQuantity::Expr(Box::new(Expr::Value(
             (number("5")).with_empty_span()
-        ))),
+        )))),
         top.quantity
     );
     assert!(!top.percent);
@@ -725,9 +725,9 @@ fn parse_mssql_top_percent() {
     let select = ms_and_generic().verified_only_select(sql);
     let top = select.top.unwrap();
     assert_eq!(
-        Some(TopQuantity::Expr(Expr::Value(
+        Some(TopQuantity::Expr(Box::new(Expr::Value(
             (number("5")).with_empty_span()
-        ))),
+        )))),
         top.quantity
     );
     assert!(top.percent);
@@ -739,9 +739,9 @@ fn parse_mssql_top_with_ties() {
     let select = ms_and_generic().verified_only_select(sql);
     let top = select.top.unwrap();
     assert_eq!(
-        Some(TopQuantity::Expr(Expr::Value(
+        Some(TopQuantity::Expr(Box::new(Expr::Value(
             (number("5")).with_empty_span()
-        ))),
+        )))),
         top.quantity
     );
     assert!(top.with_ties);
@@ -753,9 +753,9 @@ fn parse_mssql_top_percent_with_ties() {
     let select = ms_and_generic().verified_only_select(sql);
     let top = select.top.unwrap();
     assert_eq!(
-        Some(TopQuantity::Expr(Expr::Value(
+        Some(TopQuantity::Expr(Box::new(Expr::Value(
             (number("10")).with_empty_span()
-        ))),
+        )))),
         top.quantity
     );
     assert!(top.percent);
@@ -2083,12 +2083,12 @@ fn parse_create_table_with_identity_column() {
             vec![
                 ColumnOptionDef {
                     name: None,
-                    option: ColumnOption::Identity(IdentityPropertyKind::Identity(
+                    option: ColumnOption::Identity(Box::new(IdentityPropertyKind::Identity(
                         IdentityProperty {
                             parameters: None,
                             order: None,
                         },
-                    )),
+                    ))),
                 },
                 ColumnOptionDef {
                     name: None,
@@ -2101,7 +2101,7 @@ fn parse_create_table_with_identity_column() {
             vec![
                 ColumnOptionDef {
                     name: None,
-                    option: ColumnOption::Identity(IdentityPropertyKind::Identity(
+                    option: ColumnOption::Identity(Box::new(IdentityPropertyKind::Identity(
                         IdentityProperty {
                             parameters: Some(IdentityPropertyFormatKind::FunctionCall(
                                 IdentityParameters {
@@ -2111,7 +2111,7 @@ fn parse_create_table_with_identity_column() {
                             )),
                             order: None,
                         },
-                    )),
+                    ))),
                 },
                 ColumnOptionDef {
                     name: None,

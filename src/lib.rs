@@ -149,10 +149,9 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::upper_case_acronyms)]
-// Permit large enum variants to keep a unified, expressive AST.
-// Splitting complex nodes (expressions, statements, types) into separate types
-// would bloat the API and hide intent. Extra memory is a worthwhile tradeoff.
-#![allow(clippy::large_enum_variant)]
+// `avoid-breaking-exported-api = false` in clippy.toml exists to catch oversized
+// enum variants; it also unmutes naming lints on the public API, which are not wanted.
+#![allow(clippy::enum_variant_names)]
 #![forbid(clippy::unreachable)]
 #![forbid(missing_docs)]
 

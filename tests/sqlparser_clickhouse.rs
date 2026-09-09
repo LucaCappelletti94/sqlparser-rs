@@ -52,7 +52,7 @@ fn parse_map_access_expr() {
                     quote_style: None,
                     span: Span::empty(),
                 })),
-                access_chain: vec![AccessExpr::Subscript(Subscript::Index {
+                access_chain: vec![AccessExpr::Subscript(Box::new(Subscript::Index {
                     index: call(
                         "indexOf",
                         [
@@ -60,7 +60,7 @@ fn parse_map_access_expr() {
                             Expr::value(Value::SingleQuotedString("endpoint".to_string()))
                         ]
                     ),
-                })],
+                }))],
             })],
             exclude: None,
             into: None,
@@ -80,7 +80,7 @@ fn parse_map_access_expr() {
                 right: Box::new(BinaryOp {
                     left: Box::new(Expr::CompoundFieldAccess {
                         root: Box::new(Identifier(Ident::new("string_value"))),
-                        access_chain: vec![AccessExpr::Subscript(Subscript::Index {
+                        access_chain: vec![AccessExpr::Subscript(Box::new(Subscript::Index {
                             index: call(
                                 "indexOf",
                                 [
@@ -88,7 +88,7 @@ fn parse_map_access_expr() {
                                     Expr::value(Value::SingleQuotedString("app".to_string()))
                                 ]
                             ),
-                        })],
+                        }))],
                     }),
                     op: BinaryOperator::NotEq,
                     right: Box::new(Expr::value(Value::SingleQuotedString("foo".to_string()))),
@@ -564,7 +564,9 @@ fn parse_optimize_table() {
             assert!(include_final);
             assert_eq!(
                 deduplicate,
-                Some(Deduplicate::ByExpression(Identifier(Ident::new("id"))))
+                Some(Deduplicate::ByExpression(Box::new(Identifier(Ident::new(
+                    "id"
+                )))))
             );
         }
         _ => unreachable!(),

@@ -162,7 +162,7 @@ pub enum IsLateral {
 /// Represents a wildcard expression used in SELECT lists.
 pub enum WildcardExpr {
     /// A specific expression used instead of a wildcard.
-    Expr(Expr),
+    Expr(Box<Expr>),
     /// A qualified wildcard like `table.*`.
     QualifiedWildcard(ObjectName),
     /// An unqualified `*` wildcard.
@@ -4285,7 +4285,7 @@ impl<'a> Parser<'a> {
         if self.consume_token(&Token::RBracket) {
             return Ok(Subscript::Slice {
                 lower_bound,
-                upper_bound,
+                upper_bound: upper_bound.map(Box::new),
                 stride: None,
             });
         }
@@ -4304,8 +4304,8 @@ impl<'a> Parser<'a> {
 
         Ok(Subscript::Slice {
             lower_bound,
-            upper_bound,
-            stride,
+            upper_bound: upper_bound.map(Box::new),
+            stride: stride.map(Box::new),
         })
     }
 
@@ -4325,7 +4325,7 @@ impl<'a> Parser<'a> {
     /// Parser is right after `[`
     fn parse_subscript(&mut self, chain: &mut Vec<AccessExpr>) -> Result<(), ParserError> {
         let subscript = self.parse_subscript_inner()?;
-        chain.push(AccessExpr::Subscript(subscript));
+        chain.push(AccessExpr::Subscript(Box::new(subscript)));
         Ok(())
     }
 
@@ -6156,7 +6156,7 @@ impl<'a> Parser<'a> {
                 Some(CreateFunctionBody::AsReturnExpr(self.parse_expr()?))
             } else if self.peek_keyword(Keyword::SELECT) {
                 let select = self.parse_select()?;
-                Some(CreateFunctionBody::AsReturnSelect(select))
+                Some(CreateFunctionBody::AsReturnSelect(Box::new(select)))
             } else {
                 parser_err!(
                     "Expected a subquery (or bare SELECT statement) after RETURN",
@@ -6589,7 +6589,7 @@ impl<'a> Parser<'a> {
                 definition: if self.parse_keyword(Keyword::TABLE) {
                     MacroDefinition::Table(self.parse_query()?)
                 } else {
-                    MacroDefinition::Expr(self.parse_expr()?)
+                    MacroDefinition::Expr(Box::new(self.parse_expr()?))
                 },
             })
         } else {
@@ -7032,7 +7032,9 @@ impl<'a> Parser<'a> {
                         password = if self.parse_keyword(Keyword::NULL) {
                             Some(Password::NullPassword)
                         } else {
-                            Some(Password::Password(Expr::Value(self.parse_value()?)))
+                            Some(Password::Password(Box::new(Expr::Value(
+                                self.parse_value()?,
+                            ))))
                         };
                         Ok(())
                     }
@@ -9079,7 +9081,7 @@ impl<'a> Parser<'a> {
         } else if self.parse_keyword(Keyword::MAXVALUE) {
             Ok(PartitionBoundValue::MaxValue)
         } else {
-            Ok(PartitionBoundValue::Expr(self.parse_expr()?))
+            Ok(PartitionBoundValue::Expr(Box::new(self.parse_expr()?)))
         }
     }
 
@@ -9771,12 +9773,12 @@ impl<'a> Parser<'a> {
             } else {
                 None
             };
-            Ok(Some(ColumnOption::Identity(
+            Ok(Some(ColumnOption::Identity(Box::new(
                 IdentityPropertyKind::Identity(IdentityProperty {
                     parameters,
                     order: None,
                 }),
-            )))
+            ))))
         } else if dialect_of!(self is SQLiteDialect | GenericDialect)
             && self.parse_keywords(&[Keyword::ON, Keyword::CONFLICT])
         {
@@ -12652,7 +12654,7 @@ impl<'a> Parser<'a> {
         Ok(CreateFunctionBody::AsBeforeOptions {
             body: parse_string_expr(self)?,
             link_symbol: if self.consume_token(&Token::Comma) {
-                Some(parse_string_expr(self)?)
+                Some(Box::new(parse_string_expr(self)?))
             } else {
                 None
             },
@@ -12758,7 +12760,7 @@ impl<'a> Parser<'a> {
             let name = parser.parse_literal_string()?;
             let e = if parser.consume_token(&Token::Eq) {
                 let value = parser.parse_number()?;
-                EnumMember::NamedValue(name, value)
+                EnumMember::NamedValue(name, Box::new(value))
             } else {
                 EnumMember::Name(name)
             };
@@ -13524,8 +13526,8 @@ impl<'a> Parser<'a> {
                     }
                 })?;
                 self.expect_token(&Token::RParen)?;
-                modifiers.push(GroupByWithModifier::GroupingSets(Expr::GroupingSets(
-                    result,
+                modifiers.push(GroupByWithModifier::GroupingSets(Box::new(
+                    Expr::GroupingSets(result),
                 )));
             };
             let group_by = match expressions {
@@ -13624,7 +13626,7 @@ impl<'a> Parser<'a> {
         if self.dialect.supports_insert_table_function() && self.parse_keyword(Keyword::FUNCTION) {
             let fn_name = self.parse_object_name(false)?;
             self.parse_function_call(fn_name)
-                .map(TableObject::TableFunction)
+                .map(|f| TableObject::TableFunction(Box::new(f)))
         } else if self.dialect.supports_insert_table_query() && self.peek_subquery_or_cte_start() {
             self.parse_parenthesized(|p| p.parse_query())
                 .map(TableObject::TableQuery)
@@ -14872,7 +14874,7 @@ impl<'a> Parser<'a> {
                         ));
                     }
                     let join = joins.swap_remove(0);
-                    pipe_operators.push(PipeOperator::Join(join))
+                    pipe_operators.push(PipeOperator::Join(Box::new(join)))
                 }
                 unhandled => {
                     return Err(ParserError::ParserError(format!(
@@ -16179,7 +16181,9 @@ impl<'a> Parser<'a> {
                 self.parse_literal_string()?,
             )))
         } else if self.parse_keyword(Keyword::WHERE) {
-            Ok(Some(ShowStatementFilter::Where(self.parse_expr()?)))
+            Ok(Some(ShowStatementFilter::Where(Box::new(
+                self.parse_expr()?,
+            ))))
         } else {
             self.maybe_parse(|parser| -> Result<String, ParserError> {
                 parser.parse_literal_string()
@@ -16296,8 +16300,8 @@ impl<'a> Parser<'a> {
                     relation,
                     global,
                     join_operator: JoinOperator::AsOf {
-                        match_condition,
-                        constraint: self.parse_join_constraint(false)?,
+                        match_condition: Box::new(match_condition),
+                        constraint: Box::new(self.parse_join_constraint(false)?),
                     },
                 }
             } else if self.dialect.supports_array_join_syntax()
@@ -16749,7 +16753,7 @@ impl<'a> Parser<'a> {
             };
 
             // Parse potential version qualifier
-            let version = self.maybe_parse_table_version()?;
+            let version = self.maybe_parse_table_version()?.map(Box::new);
 
             // Postgres, MSSQL, ClickHouse: table-valued functions:
             let args = if self.consume_token(&Token::LParen) {
@@ -17063,8 +17067,8 @@ impl<'a> Parser<'a> {
 
             XmlTableColumnOption::NamedInfo {
                 r#type,
-                path,
-                default,
+                path: path.map(Box::new),
+                default: default.map(Box::new),
                 nullable: !not_null,
             }
         };
@@ -17435,7 +17439,11 @@ impl<'a> Parser<'a> {
         } else {
             None
         };
-        Ok(TableVersion::Changes { changes, at, end })
+        Ok(TableVersion::Changes {
+            changes,
+            at: Box::new(at),
+            end: end.map(Box::new),
+        })
     }
 
     /// Parses MySQL's JSON_TABLE column definition.
@@ -17472,14 +17480,14 @@ impl<'a> Parser<'a> {
                 on_error = Some(error_handling);
             }
         }
-        Ok(JsonTableColumn::Named(JsonTableNamedColumn {
+        Ok(JsonTableColumn::Named(Box::new(JsonTableNamedColumn {
             name,
             r#type,
             path,
             exists,
             on_empty,
             on_error,
-        }))
+        })))
     }
 
     /// Parses MSSQL's `OPENJSON WITH` column definition.
@@ -17729,7 +17737,7 @@ impl<'a> Parser<'a> {
             Ok(JoinConstraint::Natural)
         } else if self.parse_keyword(Keyword::ON) {
             let constraint = self.parse_expr()?;
-            Ok(JoinConstraint::On(constraint))
+            Ok(JoinConstraint::On(Box::new(constraint)))
         } else if self.parse_keyword(Keyword::USING) {
             let columns = self.parse_parenthesized_qualified_column_list(Mandatory, false)?;
             Ok(JoinConstraint::Using(columns))
@@ -18591,16 +18599,16 @@ impl<'a> Parser<'a> {
                         } else {
                             None
                         };
-                        OnConflictAction::DoUpdate(DoUpdate {
+                        OnConflictAction::DoUpdate(Box::new(DoUpdate {
                             assignments,
                             selection,
-                        })
+                        }))
                     };
 
-                    Some(OnInsert::OnConflict(OnConflict {
+                    Some(OnInsert::OnConflict(Box::new(OnConflict {
                         conflict_target,
                         action,
-                    }))
+                    })))
                 } else {
                     self.expect_keyword_is(Keyword::DUPLICATE)?;
                     self.expect_keyword_is(Keyword::KEY)?;
@@ -19172,7 +19180,7 @@ impl<'a> Parser<'a> {
             {
                 let wildcard_token = self.get_previous_token().clone();
                 Ok(SelectItem::QualifiedWildcard(
-                    SelectItemQualifiedWildcardKind::Expr(expr),
+                    SelectItemQualifiedWildcardKind::Expr(Box::new(expr)),
                     Box::new(self.parse_wildcard_additional_options(wildcard_token)?),
                 ))
             }
@@ -19357,9 +19365,7 @@ impl<'a> Parser<'a> {
     ) -> Result<Option<ReplaceSelectItem>, ParserError> {
         let opt_replace = if self.parse_keyword(Keyword::REPLACE) {
             if self.consume_token(&Token::LParen) {
-                let items = self.parse_comma_separated(|parser| {
-                    Ok(Box::new(parser.parse_replace_elements()?))
-                })?;
+                let items = self.parse_comma_separated(|parser| parser.parse_replace_elements())?;
                 self.expect_token(&Token::RParen)?;
                 Some(ReplaceSelectItem { items })
             } else {
@@ -19564,7 +19570,7 @@ impl<'a> Parser<'a> {
         let quantity = if self.consume_token(&Token::LParen) {
             let quantity = self.parse_expr()?;
             self.expect_token(&Token::RParen)?;
-            Some(TopQuantity::Expr(quantity))
+            Some(TopQuantity::Expr(Box::new(quantity)))
         } else {
             let next_token = self.next_token();
             let quantity = match next_token.token {
@@ -20278,7 +20284,7 @@ impl<'a> Parser<'a> {
 
         let deduplicate = if self.parse_keyword(Keyword::DEDUPLICATE) {
             if self.parse_keyword(Keyword::BY) {
-                Some(Deduplicate::ByExpression(self.parse_expr()?))
+                Some(Deduplicate::ByExpression(Box::new(self.parse_expr()?)))
             } else {
                 Some(Deduplicate::All)
             }

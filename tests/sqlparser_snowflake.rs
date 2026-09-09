@@ -670,11 +670,11 @@ fn test_snowflake_create_table_with_autoincrement_columns() {
                         data_type: DataType::Int(None),
                         options: vec![ColumnOptionDef {
                             name: None,
-                            option: ColumnOption::Identity(IdentityPropertyKind::Autoincrement(
-                                IdentityProperty {
+                            option: ColumnOption::Identity(Box::new(
+                                IdentityPropertyKind::Autoincrement(IdentityProperty {
                                     parameters: None,
                                     order: Some(IdentityPropertyOrder::Order),
-                                }
+                                })
                             ))
                         }]
                     },
@@ -683,8 +683,8 @@ fn test_snowflake_create_table_with_autoincrement_columns() {
                         data_type: DataType::Int(None),
                         options: vec![ColumnOptionDef {
                             name: None,
-                            option: ColumnOption::Identity(IdentityPropertyKind::Autoincrement(
-                                IdentityProperty {
+                            option: ColumnOption::Identity(Box::new(
+                                IdentityPropertyKind::Autoincrement(IdentityProperty {
                                     parameters: Some(IdentityPropertyFormatKind::FunctionCall(
                                         IdentityParameters {
                                             seed: Expr::value(number("100")),
@@ -692,7 +692,7 @@ fn test_snowflake_create_table_with_autoincrement_columns() {
                                         }
                                     )),
                                     order: Some(IdentityPropertyOrder::NoOrder),
-                                }
+                                })
                             ))
                         }]
                     },
@@ -701,11 +701,11 @@ fn test_snowflake_create_table_with_autoincrement_columns() {
                         data_type: DataType::Int(None),
                         options: vec![ColumnOptionDef {
                             name: None,
-                            option: ColumnOption::Identity(IdentityPropertyKind::Identity(
-                                IdentityProperty {
+                            option: ColumnOption::Identity(Box::new(
+                                IdentityPropertyKind::Identity(IdentityProperty {
                                     parameters: None,
                                     order: None,
-                                }
+                                })
                             ))
                         }]
                     },
@@ -714,8 +714,8 @@ fn test_snowflake_create_table_with_autoincrement_columns() {
                         data_type: DataType::Int(None),
                         options: vec![ColumnOptionDef {
                             name: None,
-                            option: ColumnOption::Identity(IdentityPropertyKind::Identity(
-                                IdentityProperty {
+                            option: ColumnOption::Identity(Box::new(
+                                IdentityPropertyKind::Identity(IdentityProperty {
                                     parameters: Some(
                                         IdentityPropertyFormatKind::StartAndIncrement(
                                             IdentityParameters {
@@ -729,7 +729,7 @@ fn test_snowflake_create_table_with_autoincrement_columns() {
                                         )
                                     ),
                                     order: Some(IdentityPropertyOrder::Order),
-                                }
+                                })
                             ))
                         }]
                     },
@@ -912,11 +912,11 @@ fn test_snowflake_create_table_with_several_column_options() {
                         options: vec![
                             ColumnOptionDef {
                                 name: None,
-                                option: ColumnOption::Identity(IdentityPropertyKind::Identity(
-                                    IdentityProperty {
+                                option: ColumnOption::Identity(Box::new(
+                                    IdentityPropertyKind::Identity(IdentityProperty {
                                         parameters: None,
                                         order: None
-                                    }
+                                    })
                                 )),
                             },
                             ColumnOptionDef {
@@ -1610,7 +1610,7 @@ fn test_select_wildcard_with_replace_and_rename() {
     );
     let expected = SelectItem::Wildcard(Box::new(WildcardAdditionalOptions {
         opt_replace: Some(ReplaceSelectItem {
-            items: vec![Box::new(ReplaceSelectElement {
+            items: vec![ReplaceSelectElement {
                 expr: Expr::BinaryOp {
                     left: Box::new(Expr::Identifier(Ident::new("col_z"))),
                     op: BinaryOperator::StringConcat,
@@ -1618,7 +1618,7 @@ fn test_select_wildcard_with_replace_and_rename() {
                 },
                 column_name: Ident::new("col_z"),
                 as_keyword: true,
-            })],
+            }],
         }),
         opt_rename: Some(RenameSelectItem::Multiple(vec![IdentWithAlias {
             ident: Ident::new("col_z"),
@@ -3198,7 +3198,7 @@ fn asof_joins() {
                 relation: table_with_alias("quotes_unixtime", true, "qu"),
                 global: false,
                 join_operator: JoinOperator::AsOf {
-                    match_condition: Expr::BinaryOp {
+                    match_condition: Box::new(Expr::BinaryOp {
                         left: Box::new(Expr::CompoundIdentifier(vec![
                             Ident::new("tu"),
                             Ident::new("trade_time"),
@@ -3208,8 +3208,8 @@ fn asof_joins() {
                             Ident::new("qu"),
                             Ident::new("quote_time"),
                         ])),
-                    },
-                    constraint: JoinConstraint::None,
+                    }),
+                    constraint: Box::new(JoinConstraint::None),
                 },
             }],
         }
@@ -3971,7 +3971,10 @@ fn test_multi_table_insert_ast_complex_values() {
 
             // First value: n1 + n2 (binary expression)
             match &values.values[0] {
-                MultiTableInsertValue::Expr(Expr::BinaryOp { op, .. }) => {
+                MultiTableInsertValue::Expr(expr) => {
+                    let Expr::BinaryOp { op, .. } = expr.as_ref() else {
+                        panic!("Expected BinaryOp expression")
+                    };
                     assert_eq!(*op, BinaryOperator::Plus);
                 }
                 _ => panic!("Expected BinaryOp expression"),
@@ -3979,7 +3982,10 @@ fn test_multi_table_insert_ast_complex_values() {
 
             // Second value: n3 * 2 (binary expression)
             match &values.values[1] {
-                MultiTableInsertValue::Expr(Expr::BinaryOp { op, .. }) => {
+                MultiTableInsertValue::Expr(expr) => {
+                    let Expr::BinaryOp { op, .. } = expr.as_ref() else {
+                        panic!("Expected BinaryOp expression")
+                    };
                     assert_eq!(*op, BinaryOperator::Multiply);
                 }
                 _ => panic!("Expected BinaryOp expression"),
@@ -4748,10 +4754,10 @@ fn test_snowflake_identifier_function() {
         .verified_only_select("SELECT identifier('alias1').* FROM tbl AS alias1")
         .projection[0]
     {
-        SelectItem::QualifiedWildcard(
-            SelectItemQualifiedWildcardKind::Expr(Expr::Function(func)),
-            _,
-        ) => {
+        SelectItem::QualifiedWildcard(SelectItemQualifiedWildcardKind::Expr(func_expr), _) => {
+            let Expr::Function(func) = func_expr.as_ref() else {
+                unreachable!()
+            };
             assert_eq!(func.name, ObjectName::from(vec![Ident::new("identifier")]));
             assert_eq!(
                 func.args,

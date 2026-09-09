@@ -19,7 +19,7 @@
 //! (commonly referred to as Data Control Language, or DCL)
 
 #[cfg(not(feature = "std"))]
-use alloc::vec::Vec;
+use alloc::{boxed::Box, vec::Vec};
 use core::fmt;
 
 #[cfg(feature = "serde")]
@@ -122,7 +122,7 @@ pub enum SetConfigValue {
     /// Use the current value (`FROM CURRENT`).
     FromCurrent,
     /// Set to the provided expression value.
-    Value(Expr),
+    Value(Box<Expr>),
 }
 
 /// RESET config option:
@@ -175,7 +175,7 @@ pub enum AlterRoleOperation {
         /// Configuration name to set.
         config_name: ObjectName,
         /// Value to assign to the configuration.
-        config_value: SetConfigValue,
+        config_value: Box<SetConfigValue>,
         /// Optional database scope for the setting.
         in_database: Option<ObjectName>,
     },
@@ -215,7 +215,7 @@ impl fmt::Display for AlterRoleOperation {
                     write!(f, "IN DATABASE {database_name} ")?;
                 }
 
-                match config_value {
+                match config_value.as_ref() {
                     SetConfigValue::Default => write!(f, "SET {config_name} TO DEFAULT"),
                     SetConfigValue::FromCurrent => write!(f, "SET {config_name} FROM CURRENT"),
                     SetConfigValue::Value(expr) => write!(f, "SET {config_name} TO {expr}"),

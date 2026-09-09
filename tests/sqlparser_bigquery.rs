@@ -1751,9 +1751,9 @@ fn parse_table_time_travel() {
                 alias: None,
                 args: None,
                 with_hints: vec![],
-                version: Some(TableVersion::ForSystemTimeAsOf(Expr::Value(
+                version: Some(Box::new(TableVersion::ForSystemTimeAsOf(Expr::Value(
                     Value::SingleQuotedString(version.clone()).with_empty_span()
-                ))),
+                )))),
                 partitions: vec![],
                 with_ordinality: false,
                 json_path: None,
@@ -1789,11 +1789,11 @@ fn parse_join_constraint_unnest_alias() {
                 with_ordinality: false,
             },
             global: false,
-            join_operator: JoinOperator::Join(JoinConstraint::On(Expr::BinaryOp {
+            join_operator: JoinOperator::Join(JoinConstraint::On(Box::new(Expr::BinaryOp {
                 left: Box::new(Expr::Identifier("c1".into())),
                 op: BinaryOperator::Eq,
                 right: Box::new(Expr::Identifier("c2".into())),
-            })),
+            }))),
         }]
     );
 }
@@ -2254,13 +2254,13 @@ fn parse_map_access_expr() {
             "users",
         ))),
         access_chain: vec![
-            AccessExpr::Subscript(Subscript::Index {
+            AccessExpr::Subscript(Box::new(Subscript::Index {
                 index: Expr::UnaryOp {
                     op: UnaryOperator::Minus,
                     expr: Expr::value(number("1")).into(),
                 },
-            }),
-            AccessExpr::Subscript(Subscript::Index {
+            })),
+            AccessExpr::Subscript(Box::new(Subscript::Index {
                 index: Expr::Function(Box::new(Function {
                     name: ObjectName::from(vec![Ident::with_span(
                         Span::new(Location::of(1, 11), Location::of(1, 22)),
@@ -2280,7 +2280,7 @@ fn parse_map_access_expr() {
                     within_group: vec![],
                     uses_odbc_syntax: false,
                 })),
-            }),
+            })),
             AccessExpr::Dot(Expr::Identifier(Ident::with_span(
                 Span::new(Location::of(1, 24), Location::of(1, 25)),
                 "a",

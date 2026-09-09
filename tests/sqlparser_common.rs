@@ -1268,18 +1268,19 @@ fn parse_select_expr_star() {
 
     // Arbitrary compound expression with wildcard expansion.
     let select = dialects.verified_only_select("SELECT foo - bar.* FROM T");
-    let SelectItem::QualifiedWildcard(
-        SelectItemQualifiedWildcardKind::Expr(Expr::BinaryOp { left, op, right }),
-        _,
-    ) = only(&select.projection)
+    let SelectItem::QualifiedWildcard(SelectItemQualifiedWildcardKind::Expr(bop), _) =
+        only(&select.projection)
     else {
         unreachable!(
             "expected wildcard select item: got {:?}",
             &select.projection[0]
         )
     };
+    let Expr::BinaryOp { left, op, right } = &**bop else {
+        unreachable!("expected binary op expr: got {:?}", &select.projection[0])
+    };
     let (Expr::Identifier(left), BinaryOperator::Minus, Expr::Identifier(right)) =
-        (left.as_ref(), op, right.as_ref())
+        (&**left, op, &**right)
     else {
         unreachable!("expected binary op expr: got {:?}", &select.projection[0])
     };
@@ -1288,14 +1289,15 @@ fn parse_select_expr_star() {
 
     // Arbitrary expression wildcard expansion.
     let select = dialects.verified_only_select("SELECT myfunc().foo.* FROM T");
-    let SelectItem::QualifiedWildcard(
-        SelectItemQualifiedWildcardKind::Expr(Expr::CompoundFieldAccess { root, access_chain }),
-        _,
-    ) = only(&select.projection)
+    let SelectItem::QualifiedWildcard(SelectItemQualifiedWildcardKind::Expr(cfa), _) =
+        only(&select.projection)
     else {
         unreachable!("expected wildcard expr: got {:?}", &select.projection[0])
     };
-    assert!(matches!(root.as_ref(), Expr::Function(_)));
+    let Expr::CompoundFieldAccess { root, access_chain } = &**cfa else {
+        unreachable!("expected wildcard expr: got {:?}", &select.projection[0])
+    };
+    assert!(matches!(&**root, Expr::Function(_)));
     assert_eq!(1, access_chain.len());
     assert!(matches!(
         &access_chain[0],
@@ -3253,15 +3255,17 @@ fn parse_group_by_special_grouping_sets() {
                         Expr::Identifier(Ident::new("a")),
                         Expr::Identifier(Ident::new("b"))
                     ],
-                    vec![GroupByWithModifier::GroupingSets(Expr::GroupingSets(vec![
-                        vec![
-                            Expr::Identifier(Ident::new("a")),
-                            Expr::Identifier(Ident::new("b"))
-                        ],
-                        vec![Expr::Identifier(Ident::new("a")),],
-                        vec![Expr::Identifier(Ident::new("b"))],
-                        vec![]
-                    ]))]
+                    vec![GroupByWithModifier::GroupingSets(Box::new(
+                        Expr::GroupingSets(vec![
+                            vec![
+                                Expr::Identifier(Ident::new("a")),
+                                Expr::Identifier(Ident::new("b"))
+                            ],
+                            vec![Expr::Identifier(Ident::new("a")),],
+                            vec![Expr::Identifier(Ident::new("b"))],
+                            vec![]
+                        ])
+                    ))]
                 )
             );
         }
@@ -3284,16 +3288,18 @@ fn parse_group_by_grouping_sets_single_values() {
                         Expr::Identifier(Ident::new("a")),
                         Expr::Identifier(Ident::new("b"))
                     ],
-                    vec![GroupByWithModifier::GroupingSets(Expr::GroupingSets(vec![
-                        vec![
-                            Expr::Identifier(Ident::new("a")),
-                            Expr::Identifier(Ident::new("b"))
-                        ],
-                        vec![Expr::Identifier(Ident::new("a"))],
-                        vec![Expr::Identifier(Ident::new("b"))],
-                        vec![Expr::Identifier(Ident::new("c"))],
-                        vec![]
-                    ]))]
+                    vec![GroupByWithModifier::GroupingSets(Box::new(
+                        Expr::GroupingSets(vec![
+                            vec![
+                                Expr::Identifier(Ident::new("a")),
+                                Expr::Identifier(Ident::new("b"))
+                            ],
+                            vec![Expr::Identifier(Ident::new("a"))],
+                            vec![Expr::Identifier(Ident::new("b"))],
+                            vec![Expr::Identifier(Ident::new("c"))],
+                            vec![]
+                        ])
+                    ))]
                 )
             );
         }
@@ -6121,9 +6127,9 @@ fn parse_window_functions() {
         expr_from_projection(&select.projection[0])
     );
 
-    for i in 0..EXPECTED_PROJ_QTY {
+    for proj in select.projection.iter().take(EXPECTED_PROJ_QTY) {
         assert!(matches!(
-            expr_from_projection(&select.projection[i]),
+            expr_from_projection(proj),
             Expr::Function(f) if matches!(
                 f.over,
                 Some(WindowType::WindowSpec(WindowSpec { window_name: None, .. }))
@@ -7760,11 +7766,11 @@ fn parse_cross_join_constraint() {
 
     test_constraint(
         "SELECT * FROM t1 CROSS JOIN t2 ON a = b",
-        JoinConstraint::On(Expr::BinaryOp {
+        JoinConstraint::On(Box::new(Expr::BinaryOp {
             left: Box::new(Expr::Identifier(Ident::new("a"))),
             op: BinaryOperator::Eq,
             right: Box::new(Expr::Identifier(Ident::new("b"))),
-        }),
+        })),
     );
     test_constraint(
         "SELECT * FROM t1 CROSS JOIN t2 USING(a)",
@@ -7794,11 +7800,11 @@ fn parse_joins_on() {
                 index_hints: vec![],
             },
             global,
-            join_operator: f(JoinConstraint::On(Expr::BinaryOp {
+            join_operator: f(JoinConstraint::On(Box::new(Expr::BinaryOp {
                 left: Box::new(Expr::Identifier("c1".into())),
                 op: BinaryOperator::Eq,
                 right: Box::new(Expr::Identifier("c2".into())),
-            })),
+            }))),
         }
     }
     // Test parsing of aliases
@@ -9374,9 +9380,9 @@ fn lateral_derived() {
         let join = &from.joins[0];
         assert_eq!(
             join.join_operator,
-            JoinOperator::Left(JoinConstraint::On(Expr::Value(
+            JoinOperator::Left(JoinConstraint::On(Box::new(Expr::Value(
                 (test_utils::number("1")).with_empty_span()
-            )))
+            ))))
         );
         if let TableFactor::Derived {
             lateral,
@@ -13297,13 +13303,13 @@ fn parse_map_access_expr() {
             "users",
         ))),
         access_chain: vec![
-            AccessExpr::Subscript(Subscript::Index {
+            AccessExpr::Subscript(Box::new(Subscript::Index {
                 index: Expr::UnaryOp {
                     op: UnaryOperator::Minus,
                     expr: Expr::value(number("1")).into(),
                 },
-            }),
-            AccessExpr::Subscript(Subscript::Index {
+            })),
+            AccessExpr::Subscript(Box::new(Subscript::Index {
                 index: Expr::Function(Box::new(Function {
                     name: ObjectName::from(vec![Ident::with_span(
                         Span::new(Location::of(1, 11), Location::of(1, 22)),
@@ -13323,7 +13329,7 @@ fn parse_map_access_expr() {
                     within_group: vec![],
                     uses_odbc_syntax: false,
                 })),
-            }),
+            })),
         ],
     };
     assert_eq!(expr, expected);
@@ -14075,11 +14081,11 @@ fn test_select_wildcard_with_replace() {
     let select = dialects.verified_only_select(sql);
     let expected = SelectItem::Wildcard(Box::new(WildcardAdditionalOptions {
         opt_replace: Some(ReplaceSelectItem {
-            items: vec![Box::new(ReplaceSelectElement {
+            items: vec![ReplaceSelectElement {
                 expr: call("lower", [Expr::Identifier(Ident::new("city"))]),
                 column_name: Ident::new("city"),
                 as_keyword: true,
-            })],
+            }],
         }),
         ..Default::default()
     }));
@@ -14089,13 +14095,13 @@ fn test_select_wildcard_with_replace() {
         dialects.verified_only_select(r#"SELECT * REPLACE ('widget' AS item_name) FROM orders"#);
     let expected = SelectItem::Wildcard(Box::new(WildcardAdditionalOptions {
         opt_replace: Some(ReplaceSelectItem {
-            items: vec![Box::new(ReplaceSelectElement {
+            items: vec![ReplaceSelectElement {
                 expr: Expr::Value(
                     (Value::SingleQuotedString("widget".to_owned())).with_empty_span(),
                 ),
                 column_name: Ident::new("item_name"),
                 as_keyword: true,
-            })],
+            }],
         }),
         ..Default::default()
     }));
@@ -14107,7 +14113,7 @@ fn test_select_wildcard_with_replace() {
     let expected = SelectItem::Wildcard(Box::new(WildcardAdditionalOptions {
         opt_replace: Some(ReplaceSelectItem {
             items: vec![
-                Box::new(ReplaceSelectElement {
+                ReplaceSelectElement {
                     expr: Expr::BinaryOp {
                         left: Box::new(Expr::Identifier(Ident::new("quantity"))),
                         op: BinaryOperator::Divide,
@@ -14115,12 +14121,12 @@ fn test_select_wildcard_with_replace() {
                     },
                     column_name: Ident::new("quantity"),
                     as_keyword: true,
-                }),
-                Box::new(ReplaceSelectElement {
+                },
+                ReplaceSelectElement {
                     expr: Expr::value(number("3")),
                     column_name: Ident::new("order_id"),
                     as_keyword: true,
-                }),
+                },
             ],
         }),
         ..Default::default()
@@ -14368,9 +14374,9 @@ fn test_map_syntax() {
                     },
                 ],
             })),
-            access_chain: vec![AccessExpr::Subscript(Subscript::Index {
+            access_chain: vec![AccessExpr::Subscript(Box::new(Subscript::Index {
                 index: Expr::Value((Value::SingleQuotedString("a".to_owned())).with_empty_span()),
-            })],
+            }))],
         },
     );
 
@@ -16221,15 +16227,15 @@ fn parse_create_table_with_enum_types() {
                             vec![
                                 EnumMember::NamedValue(
                                     "a".to_string(),
-                                    Expr::Value(
+                                    Box::new(Expr::Value(
                                         (Number("1".parse().unwrap(), false)).with_empty_span()
-                                    )
+                                    ))
                                 ),
                                 EnumMember::NamedValue(
                                     "b".to_string(),
-                                    Expr::Value(
+                                    Box::new(Expr::Value(
                                         (Number("2".parse().unwrap(), false)).with_empty_span()
-                                    )
+                                    ))
                                 )
                             ],
                             Some(8)
@@ -16242,15 +16248,15 @@ fn parse_create_table_with_enum_types() {
                             vec![
                                 EnumMember::NamedValue(
                                     "a".to_string(),
-                                    Expr::Value(
+                                    Box::new(Expr::Value(
                                         (Number("1".parse().unwrap(), false)).with_empty_span()
-                                    )
+                                    ))
                                 ),
                                 EnumMember::NamedValue(
                                     "b".to_string(),
-                                    Expr::Value(
+                                    Box::new(Expr::Value(
                                         (Number("2".parse().unwrap(), false)).with_empty_span()
-                                    )
+                                    ))
                                 )
                             ],
                             Some(16)
@@ -17942,7 +17948,7 @@ fn test_nested_join_without_parentheses() {
                             index_hints: vec![],
                         },
                         global: false,
-                        join_operator: JoinOperator::Inner(JoinConstraint::On(Expr::BinaryOp {
+                        join_operator: JoinOperator::Inner(JoinConstraint::On(Box::new(Expr::BinaryOp {
                             left: Box::new(Expr::CompoundIdentifier(vec![
                                 Ident::new("p".to_string()),
                                 Ident::new("customer_id".to_string())
@@ -17952,13 +17958,13 @@ fn test_nested_join_without_parentheses() {
                                 Ident::new("c".to_string()),
                                 Ident::new("customer_id".to_string())
                             ])),
-                        })),
+                        }))),
                     }]
                 }),
                 alias: None
             },
             global: false,
-            join_operator: JoinOperator::Inner(JoinConstraint::On(Expr::BinaryOp {
+            join_operator: JoinOperator::Inner(JoinConstraint::On(Box::new(Expr::BinaryOp {
                 left: Box::new(Expr::CompoundIdentifier(vec![
                     Ident::new("c".to_string()),
                     Ident::new("order_id".to_string())
@@ -17968,7 +17974,7 @@ fn test_nested_join_without_parentheses() {
                     Ident::new("o".to_string()),
                     Ident::new("order_id".to_string())
                 ])),
-            }))
+            })))
         }],
     );
 
@@ -18009,7 +18015,7 @@ fn test_nested_join_without_parentheses() {
                             index_hints: vec![],
                         },
                         global: false,
-                        join_operator: JoinOperator::Join(JoinConstraint::On(Expr::BinaryOp {
+                        join_operator: JoinOperator::Join(JoinConstraint::On(Box::new(Expr::BinaryOp {
                             left: Box::new(Expr::CompoundIdentifier(vec![
                                 Ident::new("p".to_string()),
                                 Ident::new("customer_id".to_string())
@@ -18019,13 +18025,13 @@ fn test_nested_join_without_parentheses() {
                                 Ident::new("c".to_string()),
                                 Ident::new("customer_id".to_string())
                             ])),
-                        })),
+                        }))),
                     }]
                 }),
                 alias: None
             },
             global: false,
-            join_operator: JoinOperator::Join(JoinConstraint::On(Expr::BinaryOp {
+            join_operator: JoinOperator::Join(JoinConstraint::On(Box::new(Expr::BinaryOp {
                 left: Box::new(Expr::CompoundIdentifier(vec![
                     Ident::new("c".to_string()),
                     Ident::new("order_id".to_string())
@@ -18035,7 +18041,7 @@ fn test_nested_join_without_parentheses() {
                     Ident::new("o".to_string()),
                     Ident::new("order_id".to_string())
                 ])),
-            }))
+            })))
         }],
     );
 
@@ -18076,7 +18082,7 @@ fn test_nested_join_without_parentheses() {
                             index_hints: vec![],
                         },
                         global: false,
-                        join_operator: JoinOperator::Left(JoinConstraint::On(Expr::BinaryOp {
+                        join_operator: JoinOperator::Left(JoinConstraint::On(Box::new(Expr::BinaryOp {
                             left: Box::new(Expr::CompoundIdentifier(vec![
                                 Ident::new("p".to_string()),
                                 Ident::new("customer_id".to_string())
@@ -18086,13 +18092,13 @@ fn test_nested_join_without_parentheses() {
                                 Ident::new("c".to_string()),
                                 Ident::new("customer_id".to_string())
                             ])),
-                        })),
+                        }))),
                     }]
                 }),
                 alias: None
             },
             global: false,
-            join_operator: JoinOperator::Left(JoinConstraint::On(Expr::BinaryOp {
+            join_operator: JoinOperator::Left(JoinConstraint::On(Box::new(Expr::BinaryOp {
                 left: Box::new(Expr::CompoundIdentifier(vec![
                     Ident::new("c".to_string()),
                     Ident::new("order_id".to_string())
@@ -18102,7 +18108,7 @@ fn test_nested_join_without_parentheses() {
                     Ident::new("o".to_string()),
                     Ident::new("order_id".to_string())
                 ])),
-            }))
+            })))
         }],
     );
 
@@ -18143,7 +18149,7 @@ fn test_nested_join_without_parentheses() {
                             index_hints: vec![],
                         },
                         global: false,
-                        join_operator: JoinOperator::Right(JoinConstraint::On(Expr::BinaryOp {
+                        join_operator: JoinOperator::Right(JoinConstraint::On(Box::new(Expr::BinaryOp {
                             left: Box::new(Expr::CompoundIdentifier(vec![
                                 Ident::new("p".to_string()),
                                 Ident::new("customer_id".to_string())
@@ -18153,13 +18159,13 @@ fn test_nested_join_without_parentheses() {
                                 Ident::new("c".to_string()),
                                 Ident::new("customer_id".to_string())
                             ])),
-                        })),
+                        }))),
                     }]
                 }),
                 alias: None
             },
             global: false,
-            join_operator: JoinOperator::Right(JoinConstraint::On(Expr::BinaryOp {
+            join_operator: JoinOperator::Right(JoinConstraint::On(Box::new(Expr::BinaryOp {
                 left: Box::new(Expr::CompoundIdentifier(vec![
                     Ident::new("c".to_string()),
                     Ident::new("order_id".to_string())
@@ -18169,7 +18175,7 @@ fn test_nested_join_without_parentheses() {
                     Ident::new("o".to_string()),
                     Ident::new("order_id".to_string())
                 ])),
-            }))
+            })))
         }],
     );
 
@@ -18210,7 +18216,7 @@ fn test_nested_join_without_parentheses() {
                             index_hints: vec![],
                         },
                         global: false,
-                        join_operator: JoinOperator::FullOuter(JoinConstraint::On(
+                        join_operator: JoinOperator::FullOuter(JoinConstraint::On(Box::new(
                             Expr::BinaryOp {
                                 left: Box::new(Expr::CompoundIdentifier(vec![
                                     Ident::new("p".to_string()),
@@ -18222,13 +18228,13 @@ fn test_nested_join_without_parentheses() {
                                     Ident::new("customer_id".to_string())
                                 ])),
                             }
-                        )),
+                        ))),
                     }]
                 }),
                 alias: None
             },
             global: false,
-            join_operator: JoinOperator::FullOuter(JoinConstraint::On(Expr::BinaryOp {
+            join_operator: JoinOperator::FullOuter(JoinConstraint::On(Box::new(Expr::BinaryOp {
                 left: Box::new(Expr::CompoundIdentifier(vec![
                     Ident::new("c".to_string()),
                     Ident::new("order_id".to_string())
@@ -18238,7 +18244,7 @@ fn test_nested_join_without_parentheses() {
                     Ident::new("o".to_string()),
                     Ident::new("order_id".to_string())
                 ])),
-            }))
+            })))
         }],
     );
 }
