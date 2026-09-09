@@ -520,7 +520,7 @@ fn parse_update_tuple_row_values() {
 fn parse_where_in_empty_list() {
     let sql = "SELECT * FROM t1 WHERE a IN ()";
     let select = sqlite().verified_only_select(sql);
-    if let Expr::InList { list, .. } = select.selection.as_ref().unwrap() {
+    if let Expr::InList { list, .. } = select.selection.as_deref().unwrap() {
         assert_eq!(list.len(), 0);
     } else {
         unreachable!()
@@ -946,7 +946,10 @@ fn parse_pattern_operators_bind_at_like_precedence() {
         let SetExpr::Select(select) = *query.body else {
             panic!("expected a select");
         };
-        let Some(Expr::BinaryOp { op, .. }) = select.selection else {
+        let Some(expr) = select.selection else {
+            panic!("expected a WHERE binary operator");
+        };
+        let Expr::BinaryOp { op, .. } = *expr else {
             panic!("expected a WHERE binary operator");
         };
         op

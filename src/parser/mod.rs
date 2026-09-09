@@ -15398,16 +15398,16 @@ impl<'a> Parser<'a> {
             into,
             from,
             lateral_views,
-            prewhere,
-            selection,
+            prewhere: prewhere.map(Box::new),
+            selection: selection.map(Box::new),
             group_by,
             cluster_by,
             distribute_by,
             sort_by,
-            having,
+            having: having.map(Box::new),
             named_window: named_windows,
             window_before_qualify,
-            qualify,
+            qualify: qualify.map(Box::new),
             value_table_mode,
             connect_by,
             flavor: if from_first {
@@ -19134,11 +19134,11 @@ impl<'a> Parser<'a> {
         match self.parse_wildcard_expr()? {
             Expr::QualifiedWildcard(prefix, token) => Ok(SelectItem::QualifiedWildcard(
                 SelectItemQualifiedWildcardKind::ObjectName(prefix),
-                self.parse_wildcard_additional_options(token.0)?,
+                Box::new(self.parse_wildcard_additional_options(token.0)?),
             )),
-            Expr::Wildcard(token) => Ok(SelectItem::Wildcard(
+            Expr::Wildcard(token) => Ok(SelectItem::Wildcard(Box::new(
                 self.parse_wildcard_additional_options(token.0)?,
-            )),
+            ))),
             Expr::Identifier(v) if v.value.to_lowercase() == "from" && v.quote_style.is_none() => {
                 parser_err!(
                     format!("Expected an expression, found: {}", v),
@@ -19169,7 +19169,7 @@ impl<'a> Parser<'a> {
                 let wildcard_token = self.get_previous_token().clone();
                 Ok(SelectItem::QualifiedWildcard(
                     SelectItemQualifiedWildcardKind::Expr(expr),
-                    self.parse_wildcard_additional_options(wildcard_token)?,
+                    Box::new(self.parse_wildcard_additional_options(wildcard_token)?),
                 ))
             }
             expr if self.dialect.supports_select_item_multi_column_alias()

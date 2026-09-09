@@ -70,7 +70,7 @@ fn parse_map_access_expr() {
             }],
             lateral_views: vec![],
             prewhere: None,
-            selection: Some(BinaryOp {
+            selection: Some(Box::new(BinaryOp {
                 left: Box::new(BinaryOp {
                     left: Box::new(Identifier(Ident::new("id"))),
                     op: BinaryOperator::Eq,
@@ -93,7 +93,7 @@ fn parse_map_access_expr() {
                     op: BinaryOperator::NotEq,
                     right: Box::new(Expr::value(Value::SingleQuotedString("foo".to_string()))),
                 }),
-            }),
+            })),
             group_by: GroupByExpr::Expressions(vec![], vec![]),
             cluster_by: vec![],
             distribute_by: vec![],
@@ -1412,7 +1412,7 @@ fn parse_interpolate_with_empty_body() {
 fn test_prewhere() {
     match clickhouse_and_generic().verified_stmt("SELECT * FROM t PREWHERE x = 1 WHERE y = 2") {
         Statement::Query(query) => {
-            let prewhere = query.body.as_select().unwrap().prewhere.as_ref();
+            let prewhere = query.body.as_select().unwrap().prewhere.as_deref();
             assert_eq!(
                 prewhere,
                 Some(&BinaryOp {
@@ -1423,7 +1423,13 @@ fn test_prewhere() {
                     )),
                 })
             );
-            let selection = query.as_ref().body.as_select().unwrap().selection.as_ref();
+            let selection = query
+                .as_ref()
+                .body
+                .as_select()
+                .unwrap()
+                .selection
+                .as_deref();
             assert_eq!(
                 selection,
                 Some(&BinaryOp {
@@ -1440,7 +1446,7 @@ fn test_prewhere() {
 
     match clickhouse_and_generic().verified_stmt("SELECT * FROM t PREWHERE x = 1 AND y = 2") {
         Statement::Query(query) => {
-            let prewhere = query.body.as_select().unwrap().prewhere.as_ref();
+            let prewhere = query.body.as_select().unwrap().prewhere.as_deref();
             assert_eq!(
                 prewhere,
                 Some(&BinaryOp {

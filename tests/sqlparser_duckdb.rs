@@ -155,36 +155,36 @@ fn column_defs(statement: Statement) -> Vec<ColumnDef> {
 #[test]
 fn test_select_wildcard_with_exclude() {
     let select = duckdb().verified_only_select("SELECT * EXCLUDE (col_a) FROM data");
-    let expected = SelectItem::Wildcard(WildcardAdditionalOptions {
+    let expected = SelectItem::Wildcard(Box::new(WildcardAdditionalOptions {
         opt_exclude: Some(ExcludeSelectItem::Multiple(vec![ObjectName::from(
             Ident::new("col_a"),
         )])),
         ..Default::default()
-    });
+    }));
     assert_eq!(expected, select.projection[0]);
 
     let select =
         duckdb().verified_only_select("SELECT name.* EXCLUDE department_id FROM employee_table");
     let expected = SelectItem::QualifiedWildcard(
         SelectItemQualifiedWildcardKind::ObjectName(ObjectName::from(vec![Ident::new("name")])),
-        WildcardAdditionalOptions {
+        Box::new(WildcardAdditionalOptions {
             opt_exclude: Some(ExcludeSelectItem::Single(ObjectName::from(Ident::new(
                 "department_id",
             )))),
             ..Default::default()
-        },
+        }),
     );
     assert_eq!(expected, select.projection[0]);
 
     let select = duckdb()
         .verified_only_select("SELECT * EXCLUDE (department_id, employee_id) FROM employee_table");
-    let expected = SelectItem::Wildcard(WildcardAdditionalOptions {
+    let expected = SelectItem::Wildcard(Box::new(WildcardAdditionalOptions {
         opt_exclude: Some(ExcludeSelectItem::Multiple(vec![
             ObjectName::from(Ident::new("department_id")),
             ObjectName::from(Ident::new("employee_id")),
         ])),
         ..Default::default()
-    });
+    }));
     assert_eq!(expected, select.projection[0]);
 }
 
@@ -274,7 +274,7 @@ fn test_select_union_by_name() {
                 distinct: None,
                 select_modifiers: None,
                 top: None,
-                projection: vec![SelectItem::Wildcard(WildcardAdditionalOptions::default())],
+                projection: vec![SelectItem::Wildcard(Box::default())],
                 exclude: None,
                 top_before_distinct: false,
                 into: None,
@@ -307,7 +307,7 @@ fn test_select_union_by_name() {
                 distinct: None,
                 select_modifiers: None,
                 top: None,
-                projection: vec![SelectItem::Wildcard(WildcardAdditionalOptions::default())],
+                projection: vec![SelectItem::Wildcard(Box::default())],
                 exclude: None,
                 top_before_distinct: false,
                 into: None,
