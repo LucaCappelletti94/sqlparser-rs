@@ -3527,9 +3527,15 @@ impl PipeOperator {
             }
         }
         write!(f, " ")?;
-        let parenthesized_queries: Vec<String> =
-            queries.iter().map(|query| format!("({query})")).collect();
-        write!(f, "{}", display_comma_separated(&parenthesized_queries))
+        let mut first = true;
+        for query in queries {
+            if !first {
+                write!(f, ", ")?;
+            }
+            write!(f, "({query})")?;
+            first = false;
+        }
+        Ok(())
     }
 }
 

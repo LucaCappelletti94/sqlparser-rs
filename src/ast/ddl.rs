@@ -19,13 +19,7 @@
 //! (commonly referred to as Data Definition Language, or DDL)
 
 #[cfg(not(feature = "std"))]
-use alloc::{
-    boxed::Box,
-    format,
-    string::{String, ToString},
-    vec,
-    vec::Vec,
-};
+use alloc::{boxed::Box, string::String, vec::Vec};
 use core::fmt::{self, Display, Write};
 
 #[cfg(feature = "serde")]
@@ -4439,16 +4433,7 @@ impl fmt::Display for CreateView {
         }
         write!(
             f,
-            "{secure}{materialized}{temporary}VIEW {if_not_and_name}{to}",
-            if_not_and_name = if self.if_not_exists {
-                if self.name_before_not_exists {
-                    format!("{} IF NOT EXISTS", self.name)
-                } else {
-                    format!("IF NOT EXISTS {}", self.name)
-                }
-            } else {
-                format!("{}", self.name)
-            },
+            "{secure}{materialized}{temporary}VIEW ",
             secure = if self.secure { "SECURE " } else { "" },
             materialized = if self.materialized {
                 "MATERIALIZED "
@@ -4456,12 +4441,19 @@ impl fmt::Display for CreateView {
                 ""
             },
             temporary = if self.temporary { "TEMPORARY " } else { "" },
-            to = self
-                .to
-                .as_ref()
-                .map(|to| format!(" TO {to}"))
-                .unwrap_or_default()
         )?;
+        if self.if_not_exists {
+            if self.name_before_not_exists {
+                write!(f, "{} IF NOT EXISTS", self.name)?;
+            } else {
+                write!(f, "IF NOT EXISTS {}", self.name)?;
+            }
+        } else {
+            write!(f, "{}", self.name)?;
+        }
+        if let Some(to) = &self.to {
+            write!(f, " TO {to}")?;
+        }
         if self.copy_grants {
             write!(f, " COPY GRANTS")?;
         }
@@ -4882,26 +4874,21 @@ pub struct CreateOperatorClass {
 impl fmt::Display for CreateOperator {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "CREATE OPERATOR {} (", self.name)?;
-
         let function_keyword = if self.is_procedure {
             "PROCEDURE"
         } else {
             "FUNCTION"
         };
-        let mut params = vec![format!("{} = {}", function_keyword, self.function)];
-
+        write!(f, "{function_keyword} = {}", self.function)?;
         if let Some(left_arg) = &self.left_arg {
-            params.push(format!("LEFTARG = {}", left_arg));
+            write!(f, ", LEFTARG = {left_arg}")?;
         }
         if let Some(right_arg) = &self.right_arg {
-            params.push(format!("RIGHTARG = {}", right_arg));
+            write!(f, ", RIGHTARG = {right_arg}")?;
         }
-
         for option in &self.options {
-            params.push(option.to_string());
+            write!(f, ", {option}")?;
         }
-
-        write!(f, "{}", params.join(", "))?;
         write!(f, ")")
     }
 }

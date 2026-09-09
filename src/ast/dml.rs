@@ -16,7 +16,7 @@
 // under the License.
 
 #[cfg(not(feature = "std"))]
-use alloc::{boxed::Box, format, string::ToString, vec::Vec};
+use alloc::{boxed::Box, vec::Vec};
 
 use core::fmt::{self, Display};
 #[cfg(feature = "serde")]
@@ -130,28 +130,26 @@ pub struct Insert {
 impl Display for Insert {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         // SQLite OR conflict has a special format: INSERT OR ... INTO table_name
-        let table_name = if let Some(table_alias) = &self.table_alias {
-            format!(
-                "{table} {as_keyword}{alias}",
-                table = self.table,
-                as_keyword = if table_alias.explicit { "AS " } else { "" },
-                alias = table_alias.alias
-            )
-        } else {
-            self.table.to_string()
-        };
-
         if let Some(on_conflict) = self.or {
             f.write_str("INSERT")?;
             for hint in &self.optimizer_hints {
                 write!(f, " {hint}")?;
             }
-            write!(f, " {on_conflict} INTO {table_name} ")?;
+            write!(f, " {on_conflict} INTO {}", self.table)?;
+            if let Some(table_alias) = &self.table_alias {
+                write!(
+                    f,
+                    " {}{}",
+                    if table_alias.explicit { "AS " } else { "" },
+                    table_alias.alias
+                )?;
+            }
+            write!(f, " ")?;
         } else {
             write!(
                 f,
-                "{start}",
-                start = if self.replace_into {
+                "{}",
+                if self.replace_into {
                     "REPLACE"
                 } else {
                     "INSERT"
@@ -163,29 +161,34 @@ impl Display for Insert {
             if let Some(priority) = self.priority {
                 write!(f, " {priority}")?;
             }
-
             if self.ignore {
                 write!(f, " IGNORE")?;
             }
-
             if self.overwrite {
                 write!(f, " OVERWRITE")?;
             }
-
             if let Some(insert_type) = &self.multi_table_insert_type {
                 write!(f, " {}", insert_type)?;
             }
-
             if self.into {
                 write!(f, " INTO")?;
             }
-
             if self.has_table_keyword {
                 write!(f, " TABLE")?;
             }
-
-            if !table_name.is_empty() {
-                write!(f, " {table_name} ")?;
+            let table_is_nonempty =
+                !matches!(&self.table, TableObject::TableName(n) if n.0.is_empty());
+            if table_is_nonempty {
+                write!(f, " {}", self.table)?;
+                if let Some(table_alias) = &self.table_alias {
+                    write!(
+                        f,
+                        " {}{}",
+                        if table_alias.explicit { "AS " } else { "" },
+                        table_alias.alias
+                    )?;
+                }
+                write!(f, " ")?;
             }
         }
 
