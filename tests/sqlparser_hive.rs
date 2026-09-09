@@ -133,7 +133,8 @@ fn create_table_with_comment() {
         " INTO 4 BUCKETS"
     );
     match hive().verified_stmt(sql) {
-        Statement::CreateTable(CreateTable { comment, .. }) => {
+        Statement::CreateTable(ct) => {
+            let CreateTable { comment, .. } = *ct;
             assert_eq!(
                 comment,
                 Some(CommentDef::WithoutEq("table comment".to_string()))
@@ -163,7 +164,8 @@ fn create_table_with_clustered_by() {
         " INTO 4 BUCKETS"
     );
     match hive_and_generic().verified_stmt(sql) {
-        Statement::CreateTable(CreateTable { clustered_by, .. }) => {
+        Statement::CreateTable(ct) => {
+            let CreateTable { clustered_by, .. } = *ct;
             assert_eq!(
                 clustered_by.unwrap(),
                 ClusteredBy {
@@ -400,13 +402,14 @@ fn set_statement_with_minus() {
 fn parse_create_function() {
     let sql = "CREATE TEMPORARY FUNCTION mydb.myfunc AS 'org.random.class.Name' USING JAR 'hdfs://somewhere.com:8020/very/far'";
     match hive().verified_stmt(sql) {
-        Statement::CreateFunction(CreateFunction {
-            temporary,
-            name,
-            function_body,
-            using,
-            ..
-        }) => {
+        Statement::CreateFunction(cf) => {
+            let CreateFunction {
+                temporary,
+                name,
+                function_body,
+                using,
+                ..
+            } = *cf;
             assert!(temporary);
             assert_eq!(name.to_string(), "mydb.myfunc");
             assert_eq!(

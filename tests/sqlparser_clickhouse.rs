@@ -266,7 +266,8 @@ fn parse_create_table_partition_by_after_order_by() {
     match clickhouse_and_generic()
         .verified_stmt("CREATE TABLE t (a INT) ENGINE = MergeTree ORDER BY a PARTITION BY a % 64")
     {
-        Statement::CreateTable(CreateTable { partition_by, .. }) => {
+        Statement::CreateTable(ct) => {
+            let CreateTable { partition_by, .. } = *ct;
             assert_eq!(
                 partition_by,
                 Some(Box::new(BinaryOp {
@@ -617,7 +618,8 @@ fn parse_clickhouse_data_types() {
         .replace(" Float64", " FLOAT64");
 
     match clickhouse_and_generic().one_statement_parses_to(sql, &canonical_sql) {
-        Statement::CreateTable(CreateTable { name, columns, .. }) => {
+        Statement::CreateTable(ct) => {
+            let CreateTable { name, columns, .. } = *ct;
             assert_eq!(name, ObjectName::from(vec!["table".into()]));
             assert_eq!(
                 columns,
@@ -658,7 +660,8 @@ fn parse_create_table_with_nullable() {
     let canonical_sql = sql.replace("String", "STRING");
 
     match clickhouse_and_generic().one_statement_parses_to(sql, &canonical_sql) {
-        Statement::CreateTable(CreateTable { name, columns, .. }) => {
+        Statement::CreateTable(ct) => {
+            let CreateTable { name, columns, .. } = *ct;
             assert_eq!(name, ObjectName::from(vec!["table".into()]));
             assert_eq!(
                 columns,
@@ -706,7 +709,8 @@ fn parse_create_table_with_nested_data_types() {
     );
 
     match clickhouse().one_statement_parses_to(sql, "") {
-        Statement::CreateTable(CreateTable { name, columns, .. }) => {
+        Statement::CreateTable(ct) => {
+            let CreateTable { name, columns, .. } = *ct;
             assert_eq!(name, ObjectName::from(vec!["table".into()]));
             assert_eq!(
                 columns,
@@ -787,14 +791,15 @@ fn parse_create_table_with_primary_key() {
         " PRIMARY KEY tuple(i)",
         " ORDER BY tuple(i)",
     )) {
-        Statement::CreateTable(CreateTable {
-            name,
-            columns,
-            table_options,
-            primary_key,
-            order_by,
-            ..
-        }) => {
+        Statement::CreateTable(ct) => {
+            let CreateTable {
+                name,
+                columns,
+                table_options,
+                primary_key,
+                order_by,
+                ..
+            } = *ct;
             assert_eq!(name.to_string(), "db.table");
             assert_eq!(
                 vec![
@@ -877,7 +882,8 @@ fn parse_create_table_with_variant_default_expressions() {
         ") ENGINE = MergeTree"
     );
     match clickhouse_and_generic().verified_stmt(sql) {
-        Statement::CreateTable(CreateTable { columns, .. }) => {
+        Statement::CreateTable(ct) => {
+            let CreateTable { columns, .. } = *ct;
             assert_eq!(
                 columns,
                 vec![
@@ -1549,12 +1555,13 @@ fn test_insert_query_with_format_clause() {
 fn parse_create_table_on_commit_and_as_query() {
     let sql = r#"CREATE LOCAL TEMPORARY TABLE test ON COMMIT PRESERVE ROWS AS SELECT 1"#;
     match clickhouse_and_generic().verified_stmt(sql) {
-        Statement::CreateTable(CreateTable {
-            name,
-            on_commit,
-            query,
-            ..
-        }) => {
+        Statement::CreateTable(ct) => {
+            let CreateTable {
+                name,
+                on_commit,
+                query,
+                ..
+            } = *ct;
             assert_eq!(name.to_string(), "test");
             assert_eq!(on_commit, Some(OnCommit::PreserveRows));
             assert_eq!(

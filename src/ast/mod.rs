@@ -3630,7 +3630,7 @@ pub enum Statement {
     /// A `CASE` statement.
     Case(CaseStatement),
     /// An `IF` statement.
-    If(IfStatement),
+    If(Box<IfStatement>),
     /// A `WHILE` statement.
     While(WhileStatement),
     /// A `RAISE` statement.
@@ -3713,7 +3713,7 @@ pub enum Statement {
     /// ```sql
     /// UPDATE
     /// ```
-    Update(Update),
+    Update(Box<Update>),
     /// ```sql
     /// DELETE
     /// ```
@@ -3725,7 +3725,7 @@ pub enum Statement {
     /// ```sql
     /// CREATE TABLE
     /// ```
-    CreateTable(CreateTable),
+    CreateTable(Box<CreateTable>),
     /// ```sql
     /// CREATE VIRTUAL TABLE .. USING <module_name> (<module_args>)`
     /// ```
@@ -4476,7 +4476,7 @@ pub enum Statement {
     /// 2. [PostgreSQL](https://www.postgresql.org/docs/15/sql-createfunction.html)
     /// 3. [BigQuery](https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language#create_function_statement)
     /// 4. [MsSql](https://learn.microsoft.com/en-us/sql/t-sql/statements/create-function-transact-sql)
-    CreateFunction(CreateFunction),
+    CreateFunction(Box<CreateFunction>),
     /// CREATE TRIGGER statement. See struct [CreateTrigger] for details.
     CreateTrigger(CreateTrigger),
     /// DROP TRIGGER statement. See struct [DropTrigger] for details.
@@ -4720,7 +4720,7 @@ pub enum Statement {
     /// [Snowflake](https://docs.snowflake.com/en/sql-reference/sql/merge)
     /// [BigQuery](https://cloud.google.com/bigquery/docs/reference/standard-sql/dml-syntax#merge_statement)
     /// [MSSQL](https://learn.microsoft.com/en-us/sql/t-sql/statements/merge-transact-sql?view=sql-server-ver16)
-    Merge(Merge),
+    Merge(Box<Merge>),
     /// ```sql
     /// CACHE [ FLAG ] TABLE <table_name> [ OPTIONS('K1' = 'V1', 'K2' = V2) ] [ AS ] [ <query> ]
     /// ```
@@ -12307,7 +12307,7 @@ impl From<Insert> for Statement {
 
 impl From<Update> for Statement {
     fn from(u: Update) -> Self {
-        Self::Update(u)
+        Self::Update(Box::new(u))
     }
 }
 
@@ -12361,7 +12361,7 @@ impl From<CaseStatement> for Statement {
 
 impl From<IfStatement> for Statement {
     fn from(i: IfStatement) -> Self {
-        Self::If(i)
+        Self::If(Box::new(i))
     }
 }
 
@@ -12403,7 +12403,7 @@ impl From<Delete> for Statement {
 
 impl From<CreateTable> for Statement {
     fn from(c: CreateTable) -> Self {
-        Self::CreateTable(c)
+        Self::CreateTable(Box::new(c))
     }
 }
 
@@ -12499,7 +12499,7 @@ impl From<AlterTextSearch> for Statement {
 
 impl From<Merge> for Statement {
     fn from(m: Merge) -> Self {
-        Self::Merge(m)
+        Self::Merge(Box::new(m))
     }
 }
 
@@ -12535,7 +12535,7 @@ impl From<Use> for Statement {
 
 impl From<CreateFunction> for Statement {
     fn from(c: CreateFunction) -> Self {
-        Self::CreateFunction(c)
+        Self::CreateFunction(Box::new(c))
     }
 }
 

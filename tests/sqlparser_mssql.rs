@@ -233,7 +233,7 @@ fn parse_create_function() {
     let return_expression_function = "CREATE FUNCTION some_scalar_udf(@foo INT, @bar VARCHAR(256)) RETURNS INT AS BEGIN RETURN 1; END";
     assert_eq!(
         ms().verified_stmt(return_expression_function),
-        sqlparser::ast::Statement::CreateFunction(CreateFunction {
+        sqlparser::ast::Statement::CreateFunction(Box::new(CreateFunction {
             or_alter: false,
             or_replace: false,
             temporary: false,
@@ -276,7 +276,7 @@ fn parse_create_function() {
             determinism_specifier: None,
             options: None,
             remote_connection: None,
-        }),
+        })),
     );
 
     let multi_statement_function = "\
@@ -419,7 +419,7 @@ fn parse_create_function_parameter_default_values() {
         "CREATE FUNCTION test_func(@param1 INT = 42) RETURNS INT AS BEGIN RETURN @param1; END";
     assert_eq!(
         ms().verified_stmt(single_default_sql),
-        Statement::CreateFunction(CreateFunction {
+        Statement::CreateFunction(Box::new(CreateFunction {
             or_alter: false,
             or_replace: false,
             temporary: false,
@@ -451,7 +451,7 @@ fn parse_create_function_parameter_default_values() {
             determinism_specifier: None,
             options: None,
             remote_connection: None,
-        }),
+        })),
     );
 }
 
@@ -1921,7 +1921,7 @@ fn parse_create_table_with_valid_options() {
     for (sql, with_options) in options {
         assert_eq!(
             ms_and_generic().verified_stmt(sql),
-            Statement::CreateTable(CreateTable {
+            Statement::CreateTable(Box::new(CreateTable {
                 or_replace: false,
                 temporary: false,
                 unlogged: false,
@@ -2018,7 +2018,7 @@ fn parse_create_table_with_valid_options() {
                 multiset: None,
                 fallback: None,
                 with_data: None,
-            })
+            }))
         );
     }
 }
@@ -2119,7 +2119,7 @@ fn parse_create_table_with_identity_column() {
     for (sql, column_options) in with_column_options {
         assert_eq!(
             ms_and_generic().verified_stmt(sql),
-            Statement::CreateTable(CreateTable {
+            Statement::CreateTable(Box::new(CreateTable {
                 or_replace: false,
                 temporary: false,
                 unlogged: false,
@@ -2197,7 +2197,7 @@ fn parse_create_table_with_identity_column() {
                 multiset: None,
                 fallback: None,
                 with_data: None,
-            }),
+            })),
         );
     }
 }
@@ -2334,11 +2334,15 @@ fn test_mssql_if_statements_span() {
     let mut sql = "IF 1 = 1 SELECT '1' ELSE SELECT '2'";
     let mut parser = Parser::new(&MsSqlDialect {}).try_with_sql(sql).unwrap();
     match parser.parse_statement().unwrap() {
-        Statement::If(IfStatement {
-            if_block,
-            else_block: Some(else_block),
-            ..
-        }) => {
+        Statement::If(i) => {
+            let IfStatement {
+                if_block,
+                else_block: Some(else_block),
+                ..
+            } = *i
+            else {
+                panic!("Expected else_block")
+            };
             assert_eq!(
                 if_block.span(),
                 Span::new(Location::new(1, 1), Location::new(1, 20))
@@ -2355,11 +2359,15 @@ fn test_mssql_if_statements_span() {
     sql = "IF 1 = 1 BEGIN SET @A = 1; END ELSE BEGIN SET @A = 2 END";
     parser = Parser::new(&MsSqlDialect {}).try_with_sql(sql).unwrap();
     match parser.parse_statement().unwrap() {
-        Statement::If(IfStatement {
-            if_block,
-            else_block: Some(else_block),
-            ..
-        }) => {
+        Statement::If(i) => {
+            let IfStatement {
+                if_block,
+                else_block: Some(else_block),
+                ..
+            } = *i
+            else {
+                panic!("Expected else_block")
+            };
             assert_eq!(
                 if_block.span(),
                 Span::new(Location::new(1, 1), Location::new(1, 31))
@@ -2378,7 +2386,8 @@ fn parse_mssql_varbinary_max_length() {
     let sql = "CREATE TABLE example (var_binary_col VARBINARY(MAX))";
 
     match ms_and_generic().verified_stmt(sql) {
-        Statement::CreateTable(CreateTable { name, columns, .. }) => {
+        Statement::CreateTable(ct) => {
+            let CreateTable { name, columns, .. } = *ct;
             assert_eq!(
                 name,
                 ObjectName::from(vec![Ident {
@@ -2403,7 +2412,8 @@ fn parse_mssql_varbinary_max_length() {
     let sql = "CREATE TABLE example (var_binary_col VARBINARY(50))";
 
     match ms_and_generic().verified_stmt(sql) {
-        Statement::CreateTable(CreateTable { name, columns, .. }) => {
+        Statement::CreateTable(ct) => {
+            let CreateTable { name, columns, .. } = *ct;
             assert_eq!(
                 name,
                 ObjectName::from(vec![Ident {

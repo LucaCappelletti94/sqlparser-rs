@@ -420,12 +420,13 @@ fn parse_insert_sqlite() {
 fn parse_update() {
     let sql = "UPDATE t SET a = 1, b = 2, c = 3 WHERE d";
     match verified_stmt(sql) {
-        Statement::Update(Update {
-            table,
-            assignments,
-            selection,
-            ..
-        }) => {
+        Statement::Update(u) => {
+            let Update {
+                table,
+                assignments,
+                selection,
+                ..
+            } = *u;
             assert_eq!(table.to_string(), "t".to_string());
             assert_eq!(
                 assignments,
@@ -482,7 +483,7 @@ fn parse_update_set_from() {
     let stmt = dialects.verified_stmt(sql);
     assert_eq!(
         stmt,
-        Statement::Update(Update {
+        Statement::Update(Box::new(Update {
             update_token: AttachedToken::empty(),
             optimizer_hints: vec![],
             table: TableWithJoins {
@@ -563,7 +564,7 @@ fn parse_update_set_from() {
             or: None,
             order_by: vec![],
             limit: None
-        })
+        }))
     );
 
     let sql = "UPDATE T SET a = b FROM U, (SELECT foo FROM V) AS W WHERE 1 = 1";
@@ -574,19 +575,24 @@ fn parse_update_set_from() {
 fn parse_update_with_table_alias() {
     let sql = "UPDATE users AS u SET u.username = 'new_user' WHERE u.username = 'old_user'";
     match verified_stmt(sql) {
-        Statement::Update(Update {
-            table,
-            assignments,
-            from: _from,
-            selection,
-            returning,
-            or: None,
-            order_by: _,
-            limit: None,
-            optimizer_hints,
-            update_token: _,
-            output: _,
-        }) if optimizer_hints.is_empty() => {
+        Statement::Update(u) => {
+            let Update {
+                table,
+                assignments,
+                from: _from,
+                selection,
+                returning,
+                or: None,
+                order_by: _,
+                limit: None,
+                optimizer_hints,
+                update_token: _,
+                output: _,
+            } = *u
+            else {
+                unreachable!()
+            };
+            assert!(optimizer_hints.is_empty());
             assert_eq!(
                 TableWithJoins {
                     relation: TableFactor::Table {
@@ -639,7 +645,7 @@ fn parse_update_with_table_alias() {
 #[test]
 fn parse_update_or() {
     let expect_or_clause = |sql: &str, expected_action: SqliteOnConflict| match verified_stmt(sql) {
-        Statement::Update(Update { or, .. }) => assert_eq!(or, Some(expected_action)),
+        Statement::Update(u) => assert_eq!(u.or, Some(expected_action)),
         other => unreachable!("Expected update with or, got {:?}", other),
     };
     expect_or_clause(
@@ -4120,17 +4126,21 @@ fn parse_create_table() {
          FOREIGN KEY (lng) REFERENCES othertable4(longitude) ON UPDATE SET NULL)",
     );
     match ast {
-        Statement::CreateTable(CreateTable {
-            name,
-            columns,
-            constraints,
-            table_options,
-            if_not_exists: false,
-            external: false,
-            file_format: None,
-            location: None,
-            ..
-        }) => {
+        Statement::CreateTable(ct) => {
+            let CreateTable {
+                name,
+                columns,
+                constraints,
+                table_options,
+                if_not_exists: false,
+                external: false,
+                file_format: None,
+                location: None,
+                ..
+            } = *ct
+            else {
+                unreachable!()
+            };
             assert_eq!("uk_cities", name.to_string());
             assert_eq!(
                 columns,
@@ -4340,17 +4350,21 @@ fn parse_create_table_with_constraint_characteristics() {
          FOREIGN KEY (lng) REFERENCES othertable4(longitude) ON UPDATE SET NULL NOT DEFERRABLE INITIALLY IMMEDIATE ENFORCED)",
     );
     match ast {
-        Statement::CreateTable(CreateTable {
-            name,
-            columns,
-            constraints,
-            table_options,
-            if_not_exists: false,
-            external: false,
-            file_format: None,
-            location: None,
-            ..
-        }) => {
+        Statement::CreateTable(ct) => {
+            let CreateTable {
+                name,
+                columns,
+                constraints,
+                table_options,
+                if_not_exists: false,
+                external: false,
+                file_format: None,
+                location: None,
+                ..
+            } = *ct
+            else {
+                unreachable!()
+            };
             assert_eq!("uk_cities", name.to_string());
             assert_eq!(
                 columns,
@@ -4517,7 +4531,8 @@ fn parse_create_table_column_constraint_characteristics() {
         };
 
         match ast {
-            Statement::CreateTable(CreateTable { columns, .. }) => {
+            Statement::CreateTable(ct) => {
+                let CreateTable { columns, .. } = *ct;
                 assert_eq!(
                     columns,
                     vec![ColumnDef {
@@ -4630,12 +4645,13 @@ fn parse_create_table_hive_array() {
         };
 
         match dialects.one_statement_parses_to(sql.as_str(), sql.as_str()) {
-            Statement::CreateTable(CreateTable {
-                if_not_exists,
-                name,
-                columns,
-                ..
-            }) => {
+            Statement::CreateTable(ct) => {
+                let CreateTable {
+                    if_not_exists,
+                    name,
+                    columns,
+                    ..
+                } = *ct;
                 assert!(if_not_exists);
                 assert_eq!(name, ObjectName::from(vec!["something".into()]));
                 assert_eq!(
@@ -4815,7 +4831,8 @@ fn parse_create_table_as() {
     let sql = "CREATE TABLE t AS SELECT * FROM a";
 
     match verified_stmt(sql) {
-        Statement::CreateTable(CreateTable { name, query, .. }) => {
+        Statement::CreateTable(ct) => {
+            let CreateTable { name, query, .. } = *ct;
             assert_eq!(name.to_string(), "t".to_string());
             assert_eq!(query, Some(Box::new(verified_query("SELECT * FROM a"))));
         }
@@ -4828,7 +4845,8 @@ fn parse_create_table_as() {
     let dialects = all_dialects_where(|d| d.supports_create_table_multi_schema_info_sources());
     let sql = "CREATE TABLE t (a INT, b INT) AS SELECT 1 AS b, 2 AS a";
     match dialects.verified_stmt(sql) {
-        Statement::CreateTable(CreateTable { columns, query, .. }) => {
+        Statement::CreateTable(ct) => {
+            let CreateTable { columns, query, .. } = *ct;
             assert_eq!(columns.len(), 2);
             assert_eq!(columns[0].to_string(), "a INT".to_string());
             assert_eq!(columns[1].to_string(), "b INT".to_string());
@@ -4862,7 +4880,8 @@ fn parse_create_table_as_table() {
     });
 
     match verified_stmt(sql1) {
-        Statement::CreateTable(CreateTable { query, name, .. }) => {
+        Statement::CreateTable(ct) => {
+            let CreateTable { query, name, .. } = *ct;
             assert_eq!(name, ObjectName::from(vec![Ident::new("new_table")]));
             assert_eq!(query.unwrap(), expected_query1);
         }
@@ -4888,7 +4907,8 @@ fn parse_create_table_as_table() {
     });
 
     match verified_stmt(sql2) {
-        Statement::CreateTable(CreateTable { query, name, .. }) => {
+        Statement::CreateTable(ct) => {
+            let CreateTable { query, name, .. } = *ct;
             assert_eq!(name, ObjectName::from(vec![Ident::new("new_table")]));
             assert_eq!(query.unwrap(), expected_query2);
         }
@@ -4903,7 +4923,8 @@ fn parse_create_table_on_cluster() {
     // Using single-quote literal to define current cluster
     let sql = "CREATE TABLE t ON CLUSTER '{cluster}' (a INT, b INT)";
     match generic.verified_stmt(sql) {
-        Statement::CreateTable(CreateTable { on_cluster, .. }) => {
+        Statement::CreateTable(ct) => {
+            let CreateTable { on_cluster, .. } = *ct;
             assert_eq!(on_cluster.unwrap().to_string(), "'{cluster}'".to_string());
         }
         _ => unreachable!(),
@@ -4912,7 +4933,8 @@ fn parse_create_table_on_cluster() {
     // Using explicitly declared cluster name
     let sql = "CREATE TABLE t ON CLUSTER my_cluster (a INT, b INT)";
     match generic.verified_stmt(sql) {
-        Statement::CreateTable(CreateTable { on_cluster, .. }) => {
+        Statement::CreateTable(ct) => {
+            let CreateTable { on_cluster, .. } = *ct;
             assert_eq!(on_cluster.unwrap().to_string(), "my_cluster".to_string());
         }
         _ => unreachable!(),
@@ -4924,9 +4946,10 @@ fn parse_create_or_replace_table() {
     let sql = "CREATE OR REPLACE TABLE t (a INT)";
 
     match verified_stmt(sql) {
-        Statement::CreateTable(CreateTable {
-            name, or_replace, ..
-        }) => {
+        Statement::CreateTable(ct) => {
+            let CreateTable {
+                name, or_replace, ..
+            } = *ct;
             assert_eq!(name.to_string(), "t".to_string());
             assert!(or_replace);
         }
@@ -4954,7 +4977,8 @@ fn parse_create_table_with_options() {
 
     let sql = "CREATE TABLE t (c INT) WITH (foo = 'bar', a = 123)";
     match generic.verified_stmt(sql) {
-        Statement::CreateTable(CreateTable { table_options, .. }) => {
+        Statement::CreateTable(ct) => {
+            let CreateTable { table_options, .. } = *ct;
             let with_options = match table_options {
                 CreateTableOptions::With(options) => options,
                 _ => unreachable!(),
@@ -4983,7 +5007,8 @@ fn parse_create_table_with_options() {
 fn parse_create_table_clone() {
     let sql = "CREATE OR REPLACE TABLE a CLONE a_tmp";
     match verified_stmt(sql) {
-        Statement::CreateTable(CreateTable { name, clone, .. }) => {
+        Statement::CreateTable(ct) => {
+            let CreateTable { name, clone, .. } = *ct;
             assert_eq!(ObjectName::from(vec![Ident::new("a")]), name);
             assert_eq!(Some(ObjectName::from(vec![(Ident::new("a_tmp"))])), clone)
         }
@@ -5015,17 +5040,18 @@ fn parse_create_external_table() {
          STORED AS TEXTFILE LOCATION '/tmp/example.csv'",
     );
     match ast {
-        Statement::CreateTable(CreateTable {
-            name,
-            columns,
-            constraints,
-            table_options,
-            if_not_exists,
-            external,
-            file_format,
-            location,
-            ..
-        }) => {
+        Statement::CreateTable(ct) => {
+            let CreateTable {
+                name,
+                columns,
+                constraints,
+                table_options,
+                if_not_exists,
+                external,
+                file_format,
+                location,
+                ..
+            } = *ct;
             assert_eq!("uk_cities", name.to_string());
             assert_eq!(
                 columns,
@@ -5083,18 +5109,19 @@ fn parse_create_or_replace_external_table() {
          STORED AS TEXTFILE LOCATION '/tmp/example.csv'",
     );
     match ast {
-        Statement::CreateTable(CreateTable {
-            name,
-            columns,
-            constraints,
-            table_options,
-            if_not_exists,
-            external,
-            file_format,
-            location,
-            or_replace,
-            ..
-        }) => {
+        Statement::CreateTable(ct) => {
+            let CreateTable {
+                name,
+                columns,
+                constraints,
+                table_options,
+                if_not_exists,
+                external,
+                file_format,
+                location,
+                or_replace,
+                ..
+            } = *ct;
             assert_eq!("uk_cities", name.to_string());
             assert_eq!(
                 columns,
@@ -5139,14 +5166,15 @@ fn parse_create_external_table_lowercase() {
          lng DOUBLE) \
          STORED AS PARQUET LOCATION '/tmp/example.csv'",
     );
-    assert_matches!(ast, Statement::CreateTable(CreateTable { .. }));
+    assert_matches!(ast, Statement::CreateTable(_));
 }
 
 #[test]
 fn parse_create_table_hive_formats_none_when_no_options() {
     let sql = "CREATE TABLE simple_table (id INT, name VARCHAR(100))";
     match verified_stmt(sql) {
-        Statement::CreateTable(CreateTable { hive_formats, .. }) => {
+        Statement::CreateTable(ct) => {
+            let CreateTable { hive_formats, .. } = *ct;
             assert_eq!(hive_formats, None);
         }
         _ => unreachable!(),
@@ -10397,24 +10425,23 @@ fn parse_merge() {
     let sql = "MERGE INTO s.bar AS dest USING (SELECT * FROM s.foo) AS stg ON dest.D = stg.D AND dest.E = stg.E WHEN NOT MATCHED THEN INSERT (A, B, C) VALUES (stg.A, stg.B, stg.C) WHEN MATCHED AND dest.A = 'a' THEN UPDATE SET dest.F = stg.F, dest.G = stg.G WHEN MATCHED THEN DELETE";
     let sql_no_into = "MERGE s.bar AS dest USING (SELECT * FROM s.foo) AS stg ON dest.D = stg.D AND dest.E = stg.E WHEN NOT MATCHED THEN INSERT (A, B, C) VALUES (stg.A, stg.B, stg.C) WHEN MATCHED AND dest.A = 'a' THEN UPDATE SET dest.F = stg.F, dest.G = stg.G WHEN MATCHED THEN DELETE";
     match (verified_stmt(sql), verified_stmt(sql_no_into)) {
-        (
-            Statement::Merge(Merge {
+        (Statement::Merge(m1), Statement::Merge(m2)) => {
+            let Merge {
                 into,
                 table,
                 source,
                 on,
                 clauses,
                 ..
-            }),
-            Statement::Merge(Merge {
+            } = *m1;
+            let Merge {
                 into: no_into,
                 table: table_no_into,
                 source: source_no_into,
                 on: on_no_into,
                 clauses: clauses_no_into,
                 ..
-            }),
-        ) => {
+            } = *m2;
             assert!(into);
             assert!(!no_into);
 
@@ -13209,11 +13236,12 @@ fn test_parse_inline_comment() {
     // Hive dialect doesn't support `=` in table comment, please refer:
     // [Hive](https://cwiki.apache.org/confluence/display/Hive/LanguageManual+DDL#LanguageManualDDL-CreateTable)
     match all_dialects_except(|d| d.is::<HiveDialect>()).verified_stmt(sql) {
-        Statement::CreateTable(CreateTable {
-            columns,
-            table_options,
-            ..
-        }) => {
+        Statement::CreateTable(ct) => {
+            let CreateTable {
+                columns,
+                table_options,
+                ..
+            } = *ct;
             assert_eq!(
                 columns,
                 vec![ColumnDef {
@@ -16038,7 +16066,8 @@ fn test_keywords_as_column_names_after_dot() {
 fn parse_create_table_with_bit_types() {
     let sql = "CREATE TABLE t (a BIT, b BIT VARYING, c BIT(42), d BIT VARYING(43))";
     match verified_stmt(sql) {
-        Statement::CreateTable(CreateTable { columns, .. }) => {
+        Statement::CreateTable(ct) => {
+            let CreateTable { columns, .. } = *ct;
             assert_eq!(columns.len(), 4);
             assert_eq!(columns[0].data_type, DataType::Bit(None));
             assert_eq!(columns[0].to_string(), "a BIT");
@@ -16181,7 +16210,8 @@ fn parse_composite_access_expr() {
 fn parse_create_table_with_enum_types() {
     let sql = "CREATE TABLE t0 (foo ENUM8('a' = 1, 'b' = 2), bar ENUM16('a' = 1, 'b' = 2), baz ENUM('a', 'b'))";
     match all_dialects().verified_stmt(sql) {
-        Statement::CreateTable(CreateTable { name, columns, .. }) => {
+        Statement::CreateTable(ct) => {
+            let CreateTable { name, columns, .. } = *ct;
             assert_eq!(name.to_string(), "t0");
             assert_eq!(
                 vec![
@@ -16491,15 +16521,15 @@ fn parse_if_statement() {
     let dialects = all_dialects_except(|d| d.is::<MsSqlDialect>());
 
     let sql = "IF 1 THEN SELECT 1; ELSEIF 2 THEN SELECT 2; ELSE SELECT 3; END IF";
-    let Statement::If(IfStatement {
+    let Statement::If(i) = dialects.verified_stmt(sql) else {
+        unreachable!()
+    };
+    let IfStatement {
         if_block,
         elseif_blocks,
         else_block,
         ..
-    }) = dialects.verified_stmt(sql)
-    else {
-        unreachable!()
-    };
+    } = *i;
     assert_eq!(Some(Expr::value(number("1"))), if_block.condition);
     assert_eq!(Some(Expr::value(number("2"))), elseif_blocks[0].condition);
     assert_eq!(1, else_block.unwrap().statements().len());
@@ -16589,12 +16619,13 @@ fn test_conditional_statement_span() {
     let sql = "IF 1=1 THEN SELECT 1; ELSEIF 1=2 THEN SELECT 2; ELSE SELECT 3; END IF";
     let mut parser = Parser::new(&GenericDialect {}).try_with_sql(sql).unwrap();
     match parser.parse_statement().unwrap() {
-        Statement::If(IfStatement {
-            if_block,
-            elseif_blocks,
-            else_block,
-            ..
-        }) => {
+        Statement::If(i) => {
+            let IfStatement {
+                if_block,
+                elseif_blocks,
+                else_block,
+                ..
+            } = *i;
             assert_eq!(
                 Span::new(Location::new(1, 1), Location::new(1, 21)),
                 if_block.span()
@@ -18775,7 +18806,8 @@ fn test_parse_default_expr_with_operators() {
 fn test_parse_default_with_collate_column_option() {
     let sql = "CREATE TABLE foo (abc TEXT DEFAULT 'foo' COLLATE 'en_US')";
     let stmt = all_dialects().verified_stmt(sql);
-    if let Statement::CreateTable(CreateTable { mut columns, .. }) = stmt {
+    if let Statement::CreateTable(ct) = stmt {
+        let CreateTable { mut columns, .. } = *ct;
         let mut column = columns.pop().unwrap();
         assert_eq!(&column.name.value, "abc");
         assert_eq!(column.data_type, DataType::Text);
@@ -19150,7 +19182,8 @@ fn parse_invisible_column() {
     let sql = r#"CREATE TABLE t (foo INT, bar INT INVISIBLE)"#;
     let stmt = verified_stmt(sql);
     match stmt {
-        Statement::CreateTable(CreateTable { columns, .. }) => {
+        Statement::CreateTable(ct) => {
+            let CreateTable { columns, .. } = *ct;
             assert_eq!(
                 columns,
                 vec![
@@ -19969,7 +20002,8 @@ fn parse_table_factor_paren_chain_no_exponential_blowup() {
 #[test]
 fn parse_unlogged_table_logging_controls_in_all_dialects() {
     match all_dialects().verified_stmt("CREATE UNLOGGED TABLE t (a INT)") {
-        Statement::CreateTable(CreateTable { unlogged, .. }) => {
+        Statement::CreateTable(ct) => {
+            let CreateTable { unlogged, .. } = *ct;
             assert!(unlogged);
         }
         _ => unreachable!("Expected CREATE TABLE"),

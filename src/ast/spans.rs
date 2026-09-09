@@ -2925,19 +2925,12 @@ WHERE id = 1
         assert_eq!(stmt_span.end, (17, 37).into());
 
         // ~ individual tokens within the statement
-        let Statement::Merge(Merge {
-            merge_token,
-            optimizer_hints: _,
-            into: _,
-            table: _,
-            source: _,
-            on: _,
-            clauses,
-            output,
-        }) = &r[0]
-        else {
+        let Statement::Merge(m) = &r[0] else {
             panic!("not a MERGE statement");
         };
+        let merge_token = &m.merge_token;
+        let clauses = &m.clauses;
+        let output = &m.output;
         assert_eq!(
             merge_token.0.span,
             Span::new(Location::new(4, 9), Location::new(4, 14))
@@ -3075,7 +3068,8 @@ WHERE id = 1
         );
 
         // ~ individual tokens within the statement
-        if let Statement::Merge(Merge { output, .. }) = &r[0] {
+        if let Statement::Merge(m) = &r[0] {
+            let output = &m.output;
             if let Some(OutputClause::Returning {
                 returning_token, ..
             }) = output
@@ -3109,7 +3103,8 @@ WHERE id = 1
         );
 
         // ~ individual tokens within the statement
-        if let Statement::Merge(Merge { output, .. }) = &r[0] {
+        if let Statement::Merge(m) = &r[0] {
+            let output = &m.output;
             if let Some(OutputClause::Output { output_token, .. }) = output {
                 assert_eq!(
                     output_token.0.span,

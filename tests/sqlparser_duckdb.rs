@@ -147,7 +147,7 @@ fn test_struct() {
 /// Returns the ColumnDefinitions from a CreateTable statement
 fn column_defs(statement: Statement) -> Vec<ColumnDef> {
     match statement {
-        Statement::CreateTable(CreateTable { columns, .. }) => columns,
+        Statement::CreateTable(ct) => ct.columns,
         _ => panic!("Expected CreateTable"),
     }
 }
@@ -699,7 +699,7 @@ fn test_duckdb_union_datatype() {
     let sql = "CREATE TABLE tbl1 (one UNION(a INT), two UNION(a INT, b INT), nested UNION(a UNION(b INT)))";
     let stmt = duckdb_and_generic().verified_stmt(sql);
     assert_eq!(
-        Statement::CreateTable(CreateTable {
+        Statement::CreateTable(Box::new(CreateTable {
             or_replace: Default::default(),
             temporary: Default::default(),
             unlogged: Default::default(),
@@ -798,7 +798,7 @@ fn test_duckdb_union_datatype() {
             multiset: Default::default(),
             fallback: Default::default(),
             with_data: Default::default(),
-        }),
+        })),
         stmt
     );
 }

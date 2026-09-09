@@ -344,17 +344,21 @@ fn parse_create_table_with_defaults() {
             active int NOT NULL
     ) WITH (fillfactor = 20, user_catalog_table = true, autovacuum_vacuum_threshold = 100)";
     match pg_and_generic().one_statement_parses_to(sql, "") {
-        Statement::CreateTable(CreateTable {
-            name,
-            columns,
-            constraints,
-            table_options,
-            if_not_exists: false,
-            external: false,
-            file_format: None,
-            location: None,
-            ..
-        }) => {
+        Statement::CreateTable(ct) => {
+            let CreateTable {
+                name,
+                columns,
+                constraints,
+                table_options,
+                if_not_exists: false,
+                external: false,
+                file_format: None,
+                location: None,
+                ..
+            } = *ct
+            else {
+                unreachable!()
+            };
             use pretty_assertions::assert_eq;
             assert_eq!("public.customer", name.to_string());
             assert_eq!(
@@ -576,12 +580,13 @@ fn parse_create_table_constraints_only() {
     let sql = "CREATE TABLE t (CONSTRAINT positive CHECK (2 > 1))";
     let ast = pg_and_generic().verified_stmt(sql);
     match ast {
-        Statement::CreateTable(CreateTable {
-            name,
-            columns,
-            constraints,
-            ..
-        }) => {
+        Statement::CreateTable(ct) => {
+            let CreateTable {
+                name,
+                columns,
+                constraints,
+                ..
+            } = *ct;
             assert_eq!("t", name.to_string());
             assert!(columns.is_empty());
             assert_eq!(
@@ -1354,11 +1359,15 @@ fn parse_create_table_if_not_exists() {
     let sql = "CREATE TABLE IF NOT EXISTS uk_cities ()";
     let ast = pg_and_generic().verified_stmt(sql);
     match ast {
-        Statement::CreateTable(CreateTable {
-            name,
-            if_not_exists: true,
-            ..
-        }) => {
+        Statement::CreateTable(ct) => {
+            let CreateTable {
+                name,
+                if_not_exists: true,
+                ..
+            } = *ct
+            else {
+                unreachable!()
+            };
             assert_eq!("uk_cities", name.to_string());
         }
         _ => unreachable!(),
@@ -2475,7 +2484,8 @@ fn parse_pg_returning() {
              RETURNING temp_lo AS lo, temp_hi AS hi, prcp",
     );
     match stmt {
-        Statement::Update(Update { returning, .. }) => {
+        Statement::Update(u) => {
+            let Update { returning, .. } = *u;
             assert_eq!(
                 Some(vec![
                     SelectItem::ExprWithAlias {
@@ -3339,10 +3349,14 @@ fn parse_create_table_with_inherits() {
     let single_inheritance_sql =
         "CREATE TABLE child_table (child_column INT) INHERITS (public.parent_table)";
     match pg().verified_stmt(single_inheritance_sql) {
-        Statement::CreateTable(CreateTable {
-            inherits: Some(inherits),
-            ..
-        }) => {
+        Statement::CreateTable(ct) => {
+            let CreateTable {
+                inherits: Some(inherits),
+                ..
+            } = *ct
+            else {
+                unreachable!()
+            };
             assert_eq_vec(&["public", "parent_table"], &inherits[0].0);
         }
         _ => unreachable!(),
@@ -3350,10 +3364,14 @@ fn parse_create_table_with_inherits() {
 
     let double_inheritance_sql = "CREATE TABLE child_table (child_column INT) INHERITS (public.parent_table, pg_catalog.pg_settings)";
     match pg().verified_stmt(double_inheritance_sql) {
-        Statement::CreateTable(CreateTable {
-            inherits: Some(inherits),
-            ..
-        }) => {
+        Statement::CreateTable(ct) => {
+            let CreateTable {
+                inherits: Some(inherits),
+                ..
+            } = *ct
+            else {
+                unreachable!()
+            };
             assert_eq_vec(&["public", "parent_table"], &inherits[0].0);
             assert_eq_vec(&["pg_catalog", "pg_settings"], &inherits[1].0);
         }
@@ -4899,7 +4917,7 @@ $$"#;
 
     assert_eq!(
         pg_and_generic().verified_stmt(sql1),
-        Statement::CreateFunction(CreateFunction {
+        Statement::CreateFunction(Box::new(CreateFunction {
             or_alter: false,
             or_replace: true,
             temporary: false,
@@ -4932,7 +4950,7 @@ $$"#;
             determinism_specifier: None,
             options: None,
             remote_connection: None,
-        })
+        }))
     );
 
     let sql2 = r#"CREATE OR REPLACE FUNCTION check_not_zero(int1 INT) RETURNS BOOLEAN LANGUAGE plpgsql AS $$
@@ -4946,7 +4964,7 @@ END;
 $$"#;
     assert_eq!(
         pg_and_generic().verified_stmt(sql2),
-        Statement::CreateFunction(CreateFunction {
+        Statement::CreateFunction(Box::new(CreateFunction {
             or_alter: false,
             or_replace: true,
             temporary: false,
@@ -4975,7 +4993,7 @@ $$"#;
             determinism_specifier: None,
             options: None,
             remote_connection: None,
-        })
+        }))
     );
 
     let sql3 = r#"CREATE OR REPLACE FUNCTION check_values_different(a INT, b INT) RETURNS BOOLEAN LANGUAGE plpgsql AS $$
@@ -4989,7 +5007,7 @@ END;
 $$"#;
     assert_eq!(
         pg_and_generic().verified_stmt(sql3),
-        Statement::CreateFunction(CreateFunction {
+        Statement::CreateFunction(Box::new(CreateFunction {
             or_alter: false,
             or_replace: true,
             temporary: false,
@@ -5022,7 +5040,7 @@ $$"#;
             determinism_specifier: None,
             options: None,
             remote_connection: None,
-        })
+        }))
     );
 
     let sql4 = r#"CREATE OR REPLACE FUNCTION check_values_different(int1 INT, int2 INT) RETURNS BOOLEAN LANGUAGE plpgsql AS $$
@@ -5036,7 +5054,7 @@ END;
 $$"#;
     assert_eq!(
         pg_and_generic().verified_stmt(sql4),
-        Statement::CreateFunction(CreateFunction {
+        Statement::CreateFunction(Box::new(CreateFunction {
             or_alter: false,
             or_replace: true,
             temporary: false,
@@ -5069,7 +5087,7 @@ $$"#;
             determinism_specifier: None,
             options: None,
             remote_connection: None,
-        })
+        }))
     );
 
     let sql5 = r#"CREATE OR REPLACE FUNCTION foo(a TIMESTAMP WITH TIME ZONE, b VARCHAR) RETURNS BOOLEAN LANGUAGE plpgsql AS $$
@@ -5079,7 +5097,7 @@ $$"#;
     $$"#;
     assert_eq!(
         pg_and_generic().verified_stmt(sql5),
-        Statement::CreateFunction(CreateFunction {
+        Statement::CreateFunction(Box::new(CreateFunction {
             or_alter: false,
             or_replace: true,
             temporary: false,
@@ -5113,7 +5131,7 @@ $$"#;
             determinism_specifier: None,
             options: None,
             remote_connection: None,
-        })
+        }))
     );
 
     let incorrect_sql = "CREATE FUNCTION add(function(struct<a,b> int64), b INTEGER) RETURNS INTEGER LANGUAGE SQL IMMUTABLE STRICT PARALLEL SAFE AS 'select $1 + $2;'";
@@ -5125,7 +5143,7 @@ fn parse_create_function() {
     let sql = "CREATE FUNCTION add(INTEGER, INTEGER) RETURNS INTEGER LANGUAGE SQL IMMUTABLE STRICT PARALLEL SAFE AS 'select $1 + $2;'";
     assert_eq!(
         pg_and_generic().verified_stmt(sql),
-        Statement::CreateFunction(CreateFunction {
+        Statement::CreateFunction(Box::new(CreateFunction {
             or_alter: false,
             or_replace: false,
             temporary: false,
@@ -5152,7 +5170,7 @@ fn parse_create_function() {
             determinism_specifier: None,
             options: None,
             remote_connection: None,
-        })
+        }))
     );
 }
 
@@ -5188,7 +5206,8 @@ fn parse_create_function_returns_setof() {
 
     let sql = "CREATE FUNCTION get_names() RETURNS SETOF TEXT LANGUAGE sql AS 'SELECT name FROM t'";
     match pg_and_generic().verified_stmt(sql) {
-        Statement::CreateFunction(CreateFunction { return_type, .. }) => {
+        Statement::CreateFunction(cf) => {
+            let CreateFunction { return_type, .. } = *cf;
             assert_eq!(return_type, Some(FunctionReturnType::SetOf(DataType::Text)));
         }
         _ => panic!("Expected CreateFunction"),
@@ -5200,7 +5219,8 @@ fn parse_create_function_with_security() {
     let sql =
         "CREATE FUNCTION test_fn() RETURNS void LANGUAGE sql SECURITY DEFINER AS $$ SELECT 1 $$";
     match pg_and_generic().verified_stmt(sql) {
-        Statement::CreateFunction(CreateFunction { security, .. }) => {
+        Statement::CreateFunction(cf) => {
+            let CreateFunction { security, .. } = *cf;
             assert_eq!(security, Some(FunctionSecurity::Definer));
         }
         _ => panic!("Expected CreateFunction"),
@@ -5209,7 +5229,8 @@ fn parse_create_function_with_security() {
     let sql2 =
         "CREATE FUNCTION test_fn() RETURNS void LANGUAGE sql SECURITY INVOKER AS $$ SELECT 1 $$";
     match pg_and_generic().verified_stmt(sql2) {
-        Statement::CreateFunction(CreateFunction { security, .. }) => {
+        Statement::CreateFunction(cf) => {
+            let CreateFunction { security, .. } = *cf;
             assert_eq!(security, Some(FunctionSecurity::Invoker));
         }
         _ => panic!("Expected CreateFunction"),
@@ -5221,7 +5242,8 @@ fn parse_create_function_with_set_params() {
     let sql =
         "CREATE FUNCTION test_fn() RETURNS void LANGUAGE sql SET search_path = auth, pg_temp, public AS $$ SELECT 1 $$";
     match pg_and_generic().verified_stmt(sql) {
-        Statement::CreateFunction(CreateFunction { set_params, .. }) => {
+        Statement::CreateFunction(cf) => {
+            let CreateFunction { set_params, .. } = *cf;
             assert_eq!(set_params.len(), 1);
             assert_eq!(set_params[0].name.to_string(), "search_path");
         }
@@ -5232,7 +5254,8 @@ fn parse_create_function_with_set_params() {
     let sql2 =
         "CREATE FUNCTION test_fn() RETURNS void LANGUAGE sql SET search_path = public SET statement_timeout = '5s' AS $$ SELECT 1 $$";
     match pg_and_generic().verified_stmt(sql2) {
-        Statement::CreateFunction(CreateFunction { set_params, .. }) => {
+        Statement::CreateFunction(cf) => {
+            let CreateFunction { set_params, .. } = *cf;
             assert_eq!(set_params.len(), 2);
         }
         _ => panic!("Expected CreateFunction"),
@@ -5242,7 +5265,8 @@ fn parse_create_function_with_set_params() {
     let sql3 =
         "CREATE FUNCTION test_fn() RETURNS void LANGUAGE sql SET search_path FROM CURRENT AS $$ SELECT 1 $$";
     match pg_and_generic().verified_stmt(sql3) {
-        Statement::CreateFunction(CreateFunction { set_params, .. }) => {
+        Statement::CreateFunction(cf) => {
+            let CreateFunction { set_params, .. } = *cf;
             assert_eq!(set_params.len(), 1);
             assert!(matches!(set_params[0].value, FunctionSetValue::FromCurrent));
         }
@@ -5261,7 +5285,7 @@ fn parse_create_function_c_with_module_pathname() {
     let sql = "CREATE FUNCTION cas_in(input cstring) RETURNS cas LANGUAGE c IMMUTABLE PARALLEL SAFE AS 'MODULE_PATHNAME', 'cas_in_wrapper'";
     assert_eq!(
         pg_and_generic().verified_stmt(sql),
-        Statement::CreateFunction(CreateFunction {
+        Statement::CreateFunction(Box::new(CreateFunction {
             or_alter: false,
             or_replace: false,
             temporary: false,
@@ -5293,7 +5317,7 @@ fn parse_create_function_c_with_module_pathname() {
             determinism_specifier: None,
             options: None,
             remote_connection: None,
-        })
+        }))
     );
 
     // Test that attribute order flexibility works (IMMUTABLE before LANGUAGE)
@@ -5887,16 +5911,20 @@ fn parse_create_table_with_alias() {
       bool_col BOOL
     );";
     match pg_and_generic().one_statement_parses_to(sql, "") {
-        Statement::CreateTable(CreateTable {
-            name,
-            columns,
-            constraints,
-            if_not_exists: false,
-            external: false,
-            file_format: None,
-            location: None,
-            ..
-        }) => {
+        Statement::CreateTable(ct) => {
+            let CreateTable {
+                name,
+                columns,
+                constraints,
+                if_not_exists: false,
+                external: false,
+                file_format: None,
+                location: None,
+                ..
+            } = *ct
+            else {
+                unreachable!()
+            };
             assert_eq!("public.datatype_aliases", name.to_string());
             assert_eq!(
                 columns,
@@ -5988,7 +6016,8 @@ fn parse_create_unlogged_table() {
         sql,
         "CREATE UNLOGGED TABLE public.unlogged2 (a INT PRIMARY KEY)",
     ) {
-        Statement::CreateTable(CreateTable { name, unlogged, .. }) => {
+        Statement::CreateTable(ct) => {
+            let CreateTable { name, unlogged, .. } = *ct;
             assert!(unlogged);
             assert_eq!("public.unlogged2", name.to_string());
         }
@@ -6000,7 +6029,8 @@ fn parse_create_unlogged_table() {
         sql,
         "CREATE UNLOGGED TABLE pg_temp.unlogged3 (a INT PRIMARY KEY)",
     ) {
-        Statement::CreateTable(CreateTable { name, unlogged, .. }) => {
+        Statement::CreateTable(ct) => {
+            let CreateTable { name, unlogged, .. } = *ct;
             assert!(unlogged);
             assert_eq!("pg_temp.unlogged3", name.to_string());
         }
@@ -6012,12 +6042,13 @@ fn parse_create_unlogged_table() {
         sql,
         "CREATE UNLOGGED TABLE unlogged1 (a INT) PARTITION BY RANGE(a)",
     ) {
-        Statement::CreateTable(CreateTable {
-            name,
-            unlogged,
-            partition_by,
-            ..
-        }) => {
+        Statement::CreateTable(ct) => {
+            let CreateTable {
+                name,
+                unlogged,
+                partition_by,
+                ..
+            } = *ct;
             assert!(unlogged);
             assert_eq!("unlogged1", name.to_string());
             assert!(partition_by.is_some());
@@ -6432,7 +6463,8 @@ fn parse_interval_keyword_as_unquoted_identifier() {
 fn parse_create_table_with_options() {
     let sql = "CREATE TABLE t (c INT) WITH (foo = 'bar', a = 123)";
     match pg().verified_stmt(sql) {
-        Statement::CreateTable(CreateTable { table_options, .. }) => {
+        Statement::CreateTable(ct) => {
+            let CreateTable { table_options, .. } = *ct;
             let with_options = match table_options {
                 CreateTableOptions::With(options) => options,
                 _ => unreachable!(),
@@ -6973,7 +7005,7 @@ fn parse_trigger_related_functions() {
 
     // Check the first statement
     let create_table = match create_table {
-        Statement::CreateTable(create_table) => create_table,
+        Statement::CreateTable(create_table) => *create_table,
         _ => panic!("Expected CreateTable statement"),
     };
 
@@ -7072,7 +7104,7 @@ fn parse_trigger_related_functions() {
 
     assert_eq!(
         create_function,
-        Statement::CreateFunction(CreateFunction {
+        Statement::CreateFunction(Box::new(CreateFunction {
             or_alter: false,
             or_replace: false,
             temporary: false,
@@ -7105,8 +7137,8 @@ fn parse_trigger_related_functions() {
             determinism_specifier: None,
             options: None,
             remote_connection: None
-        }
-    ));
+        }))
+    );
 
     // Check the third statement
 
@@ -7361,7 +7393,8 @@ fn parse_bitstring_literal() {
 #[test]
 fn parse_varbit_datatype() {
     match pg_and_generic().verified_stmt("CREATE TABLE foo (x VARBIT, y VARBIT(42))") {
-        Statement::CreateTable(CreateTable { columns, .. }) => {
+        Statement::CreateTable(ct) => {
+            let CreateTable { columns, .. } = *ct;
             assert_eq!(
                 columns,
                 vec![
@@ -7436,7 +7469,8 @@ fn parse_alter_table_replica_identity() {
 #[test]
 fn parse_ts_datatypes() {
     match pg_and_generic().verified_stmt("CREATE TABLE foo (x TSVECTOR)") {
-        Statement::CreateTable(CreateTable { columns, .. }) => {
+        Statement::CreateTable(ct) => {
+            let CreateTable { columns, .. } = *ct;
             assert_eq!(
                 columns,
                 vec![ColumnDef {
@@ -7450,7 +7484,8 @@ fn parse_ts_datatypes() {
     }
 
     match pg_and_generic().verified_stmt("CREATE TABLE foo (x TSQUERY)") {
-        Statement::CreateTable(CreateTable { columns, .. }) => {
+        Statement::CreateTable(ct) => {
+            let CreateTable { columns, .. } = *ct;
             assert_eq!(
                 columns,
                 vec![ColumnDef {
@@ -7637,7 +7672,8 @@ fn parse_foreign_key_match() {
         let sql = format!("CREATE TABLE t (id INT REFERENCES other_table (id) {match_clause})");
         let statement = pg_and_generic().verified_stmt(&sql);
         match statement {
-            Statement::CreateTable(CreateTable { columns, .. }) => {
+            Statement::CreateTable(ct) => {
+                let CreateTable { columns, .. } = *ct;
                 match &columns[0].options[0].option {
                     ColumnOption::ForeignKey(constraint) => {
                         assert_eq!(constraint.match_kind, Some(expected_kind));
@@ -7654,12 +7690,15 @@ fn parse_foreign_key_match() {
         );
         let statement = pg_and_generic().verified_stmt(&sql);
         match statement {
-            Statement::CreateTable(CreateTable { constraints, .. }) => match &constraints[0] {
-                TableConstraint::ForeignKey(constraint) => {
-                    assert_eq!(constraint.match_kind, Some(expected_kind));
+            Statement::CreateTable(ct) => {
+                let CreateTable { constraints, .. } = *ct;
+                match &constraints[0] {
+                    TableConstraint::ForeignKey(constraint) => {
+                        assert_eq!(constraint.match_kind, Some(expected_kind));
+                    }
+                    _ => panic!("Expected TableConstraint::ForeignKey"),
                 }
-                _ => panic!("Expected TableConstraint::ForeignKey"),
-            },
+            }
             _ => unreachable!("{:?} should parse to Statement::CreateTable", sql),
         }
     }

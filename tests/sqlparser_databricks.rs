@@ -427,7 +427,8 @@ fn data_type_timestamp_ntz() {
 
     // Column definition
     match databricks().verified_stmt("CREATE TABLE foo (x TIMESTAMP_NTZ)") {
-        Statement::CreateTable(CreateTable { columns, .. }) => {
+        Statement::CreateTable(ct) => {
+            let CreateTable { columns, .. } = *ct;
             assert_eq!(
                 columns,
                 vec![ColumnDef {
@@ -553,12 +554,13 @@ fn parse_create_table_partitioned_by() {
 
     // Verify AST structure for column without type
     match databricks().verified_stmt("CREATE TABLE t (col1 STRING) PARTITIONED BY (col1)") {
-        Statement::CreateTable(CreateTable {
-            name,
-            columns,
-            hive_distribution,
-            ..
-        }) => {
+        Statement::CreateTable(ct) => {
+            let CreateTable {
+                name,
+                columns,
+                hive_distribution,
+                ..
+            } = *ct;
             assert_eq!(name.to_string(), "t");
             assert_eq!(columns.len(), 1);
             assert_eq!(columns[0].name.to_string(), "col1");
@@ -578,13 +580,16 @@ fn parse_create_table_partitioned_by() {
 
     // Verify AST structure for column with type
     match databricks().verified_stmt("CREATE TABLE t (name STRING) PARTITIONED BY (year INT)") {
-        Statement::CreateTable(CreateTable {
-            hive_distribution:
-                HiveDistributionStyle::PARTITIONED {
-                    columns: partition_cols,
-                },
-            ..
-        }) => {
+        Statement::CreateTable(ct) => {
+            let CreateTable {
+                hive_distribution, ..
+            } = *ct;
+            let HiveDistributionStyle::PARTITIONED {
+                columns: partition_cols,
+            } = hive_distribution
+            else {
+                unreachable!()
+            };
             assert_eq!(partition_cols.len(), 1);
             assert_eq!(partition_cols[0].name.to_string(), "year");
             assert_eq!(partition_cols[0].data_type, DataType::Int(None));
@@ -636,7 +641,8 @@ fn parse_databricks_struct_type() {
         "CREATE TABLE t (col1 STRUCT<field1: STRING, field2: INT>)",
         "CREATE TABLE t (col1 STRUCT<field1 STRING, field2 INT>)",
     ) {
-        Statement::CreateTable(CreateTable { columns, .. }) => {
+        Statement::CreateTable(ct) => {
+            let CreateTable { columns, .. } = *ct;
             assert_eq!(columns.len(), 1);
             assert_eq!(columns[0].name.to_string(), "col1");
             match &columns[0].data_type {

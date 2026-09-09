@@ -463,7 +463,8 @@ pub fn index_column(stmt: Statement) -> Expr {
         Statement::CreateIndex(CreateIndex { columns, .. }) => {
             columns.first().unwrap().column.expr.clone()
         }
-        Statement::CreateTable(CreateTable { constraints, .. }) => {
+        Statement::CreateTable(ct) => {
+            let CreateTable { constraints, .. } = *ct;
             match constraints.first().unwrap() {
                 TableConstraint::Index(constraint) => {
                     constraint.columns.first().unwrap().column.expr.clone()

@@ -641,7 +641,8 @@ fn parse_set_variables() {
 fn parse_create_table_auto_increment() {
     let sql = "CREATE TABLE foo (bar INT PRIMARY KEY AUTO_INCREMENT)";
     match mysql().verified_stmt(sql) {
-        Statement::CreateTable(CreateTable { name, columns, .. }) => {
+        Statement::CreateTable(ct) => {
+            let CreateTable { name, columns, .. } = *ct;
             assert_eq!(name.to_string(), "foo");
             assert_eq!(
                 vec![ColumnDef {
@@ -735,12 +736,13 @@ fn parse_create_table_primary_and_unique_key() {
 
     for (sql, index_type_display) in sqls.iter().zip(index_type_display) {
         match mysql().one_statement_parses_to(sql, "") {
-            Statement::CreateTable(CreateTable {
-                name,
-                columns,
-                constraints,
-                ..
-            }) => {
+            Statement::CreateTable(ct) => {
+                let CreateTable {
+                    name,
+                    columns,
+                    constraints,
+                    ..
+                } = *ct;
                 assert_eq!(name.to_string(), "foo");
 
                 let expected_constraint = table_constraint_unique_primary_ctor(
@@ -806,9 +808,10 @@ fn parse_create_table_primary_and_unique_key_with_index_options() {
 
     for (sql, index_type_display) in sqls.iter().zip(index_type_display) {
         match mysql_and_generic().one_statement_parses_to(sql, "") {
-            Statement::CreateTable(CreateTable {
-                name, constraints, ..
-            }) => {
+            Statement::CreateTable(ct) => {
+                let CreateTable {
+                    name, constraints, ..
+                } = *ct;
                 assert_eq!(name.to_string(), "foo");
 
                 let expected_constraint = table_constraint_unique_primary_ctor(
@@ -925,9 +928,10 @@ fn parse_create_table_primary_and_unique_key_with_index_type() {
 
     for (sql, index_type_display) in sqls.iter().zip(index_type_display) {
         match mysql_and_generic().one_statement_parses_to(sql, "") {
-            Statement::CreateTable(CreateTable {
-                name, constraints, ..
-            }) => {
+            Statement::CreateTable(ct) => {
+                let CreateTable {
+                    name, constraints, ..
+                } = *ct;
                 assert_eq!(name.to_string(), "foo");
 
                 let expected_constraint = table_constraint_unique_primary_ctor(
@@ -977,11 +981,12 @@ fn parse_create_table_comment() {
 
     for sql in [without_equal, with_equal] {
         match mysql().verified_stmt(sql) {
-            Statement::CreateTable(CreateTable {
-                name,
-                table_options,
-                ..
-            }) => {
+            Statement::CreateTable(ct) => {
+                let CreateTable {
+                    name,
+                    table_options,
+                    ..
+                } = *ct;
                 assert_eq!(name.to_string(), "foo");
 
                 let plain_options = match table_options {
@@ -1006,11 +1011,12 @@ fn parse_create_table_auto_increment_offset() {
         "CREATE TABLE foo (bar INT NOT NULL AUTO_INCREMENT) ENGINE = InnoDB AUTO_INCREMENT = 123";
 
     match mysql().verified_stmt(sql) {
-        Statement::CreateTable(CreateTable {
-            name,
-            table_options,
-            ..
-        }) => {
+        Statement::CreateTable(ct) => {
+            let CreateTable {
+                name,
+                table_options,
+                ..
+            } = *ct;
             assert_eq!(name.to_string(), "foo");
 
             let plain_options = match table_options {
@@ -1035,11 +1041,12 @@ fn parse_create_table_multiple_options_order_independent() {
 
     for sql in [sql1, sql2, sql3] {
         match mysql().parse_sql_statements(sql).unwrap().pop().unwrap() {
-            Statement::CreateTable(CreateTable {
-                name,
-                table_options,
-                ..
-            }) => {
+            Statement::CreateTable(ct) => {
+                let CreateTable {
+                    name,
+                    table_options,
+                    ..
+                } = *ct;
                 assert_eq!(name.to_string(), "mytable");
 
                 let plain_options = match table_options {
@@ -1079,11 +1086,12 @@ fn parse_create_table_with_all_table_options() {
         "CREATE TABLE foo (bar INT NOT NULL AUTO_INCREMENT) ENGINE = InnoDB AUTO_INCREMENT = 123 DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci INSERT_METHOD = FIRST KEY_BLOCK_SIZE = 8 ROW_FORMAT = DYNAMIC DATA DIRECTORY = '/var/lib/mysql/data' INDEX DIRECTORY = '/var/lib/mysql/index' PACK_KEYS = 1 STATS_AUTO_RECALC = 1 STATS_PERSISTENT = 0 STATS_SAMPLE_PAGES = 128 DELAY_KEY_WRITE = 1 COMPRESSION = 'ZLIB' ENCRYPTION = 'Y' MAX_ROWS = 10000 MIN_ROWS = 10 AUTOEXTEND_SIZE = 64 AVG_ROW_LENGTH = 128 CHECKSUM = 1 CONNECTION = 'mysql://localhost' ENGINE_ATTRIBUTE = 'primary' PASSWORD = 'secure_password' SECONDARY_ENGINE_ATTRIBUTE = 'secondary_attr' START TRANSACTION TABLESPACE my_tablespace STORAGE DISK UNION = (table1, table2, table3)";
 
     match mysql().verified_stmt(sql) {
-        Statement::CreateTable(CreateTable {
-            name,
-            table_options,
-            ..
-        }) => {
+        Statement::CreateTable(ct) => {
+            let CreateTable {
+                name,
+                table_options,
+                ..
+            } = *ct;
             assert_eq!(name, vec![Ident::new("foo".to_owned())].into());
 
             let plain_options = match table_options {
@@ -1226,7 +1234,8 @@ fn parse_create_table_with_all_table_options() {
 fn parse_create_table_set_enum() {
     let sql = "CREATE TABLE foo (bar SET('a', 'b'), baz ENUM('a', 'b'))";
     match mysql().verified_stmt(sql) {
-        Statement::CreateTable(CreateTable { name, columns, .. }) => {
+        Statement::CreateTable(ct) => {
+            let CreateTable { name, columns, .. } = *ct;
             assert_eq!(name.to_string(), "foo");
             assert_eq!(
                 vec![
@@ -1258,12 +1267,13 @@ fn parse_create_table_set_enum() {
 fn parse_create_table_engine_default_charset() {
     let sql = "CREATE TABLE foo (id INT(11)) ENGINE = InnoDB DEFAULT CHARSET = utf8mb3";
     match mysql().verified_stmt(sql) {
-        Statement::CreateTable(CreateTable {
-            name,
-            columns,
-            table_options,
-            ..
-        }) => {
+        Statement::CreateTable(ct) => {
+            let CreateTable {
+                name,
+                columns,
+                table_options,
+                ..
+            } = *ct;
             assert_eq!(name.to_string(), "foo");
             assert_eq!(
                 vec![ColumnDef {
@@ -1300,12 +1310,13 @@ fn parse_create_table_engine_default_charset() {
 fn parse_create_table_collate() {
     let sql = "CREATE TABLE foo (id INT(11)) COLLATE = utf8mb4_0900_ai_ci";
     match mysql().verified_stmt(sql) {
-        Statement::CreateTable(CreateTable {
-            name,
-            columns,
-            table_options,
-            ..
-        }) => {
+        Statement::CreateTable(ct) => {
+            let CreateTable {
+                name,
+                columns,
+                table_options,
+                ..
+            } = *ct;
             assert_eq!(name.to_string(), "foo");
             assert_eq!(
                 vec![ColumnDef {
@@ -1334,12 +1345,13 @@ fn parse_create_table_collate() {
 fn parse_create_table_both_options_and_as_query() {
     let sql = "CREATE TABLE foo (id INT(11)) ENGINE = InnoDB DEFAULT CHARSET = utf8mb3 COLLATE = utf8mb4_0900_ai_ci AS SELECT 1";
     match mysql_and_generic().verified_stmt(sql) {
-        Statement::CreateTable(CreateTable {
-            name,
-            query,
-            table_options,
-            ..
-        }) => {
+        Statement::CreateTable(ct) => {
+            let CreateTable {
+                name,
+                query,
+                table_options,
+                ..
+            } = *ct;
             assert_eq!(name.to_string(), "foo");
 
             let plain_options = match table_options {
@@ -1374,7 +1386,8 @@ fn parse_create_table_both_options_and_as_query() {
 fn parse_create_table_comment_character_set() {
     let sql = "CREATE TABLE foo (s TEXT CHARACTER SET utf8mb4 COMMENT 'comment')";
     match mysql().verified_stmt(sql) {
-        Statement::CreateTable(CreateTable { name, columns, .. }) => {
+        Statement::CreateTable(ct) => {
+            let CreateTable { name, columns, .. } = *ct;
             assert_eq!(name.to_string(), "foo");
             assert_eq!(
                 vec![ColumnDef {
@@ -1427,7 +1440,8 @@ fn parse_create_table_options_comma_separated() {
 fn parse_quote_identifiers() {
     let sql = "CREATE TABLE `PRIMARY` (`BEGIN` INT PRIMARY KEY)";
     match mysql().verified_stmt(sql) {
-        Statement::CreateTable(CreateTable { name, columns, .. }) => {
+        Statement::CreateTable(ct) => {
+            let CreateTable { name, columns, .. } = *ct;
             assert_eq!(name.to_string(), "`PRIMARY`");
             assert_eq!(
                 vec![ColumnDef {
@@ -1700,7 +1714,8 @@ fn check_roundtrip_of_escaped_string() {
 fn parse_create_table_with_minimum_display_width() {
     let sql = "CREATE TABLE foo (bar_tinyint TINYINT(3), bar_smallint SMALLINT(5), bar_mediumint MEDIUMINT(6), bar_int INT(11), bar_bigint BIGINT(20))";
     match mysql().verified_stmt(sql) {
-        Statement::CreateTable(CreateTable { name, columns, .. }) => {
+        Statement::CreateTable(ct) => {
+            let CreateTable { name, columns, .. } = *ct;
             assert_eq!(name.to_string(), "foo");
             assert_eq!(
                 vec![
@@ -1741,7 +1756,8 @@ fn parse_create_table_with_minimum_display_width() {
 fn parse_create_table_unsigned() {
     let sql = "CREATE TABLE foo (bar_tinyint TINYINT(3) UNSIGNED, bar_smallint SMALLINT(5) UNSIGNED, bar_mediumint MEDIUMINT(13) UNSIGNED, bar_int INT(11) UNSIGNED, bar_bigint BIGINT(20) UNSIGNED)";
     match mysql().verified_stmt(sql) {
-        Statement::CreateTable(CreateTable { name, columns, .. }) => {
+        Statement::CreateTable(ct) => {
+            let CreateTable { name, columns, .. } = *ct;
             assert_eq!(name.to_string(), "foo");
             assert_eq!(
                 vec![
@@ -1783,7 +1799,8 @@ fn parse_signed_data_types() {
     let sql = "CREATE TABLE foo (bar_tinyint TINYINT(3) SIGNED, bar_smallint SMALLINT(5) SIGNED, bar_mediumint MEDIUMINT(13) SIGNED, bar_int INT(11) SIGNED, bar_bigint BIGINT(20) SIGNED)";
     let canonical = "CREATE TABLE foo (bar_tinyint TINYINT(3), bar_smallint SMALLINT(5), bar_mediumint MEDIUMINT(13), bar_int INT(11), bar_bigint BIGINT(20))";
     match mysql().one_statement_parses_to(sql, canonical) {
-        Statement::CreateTable(CreateTable { name, columns, .. }) => {
+        Statement::CreateTable(ct) => {
+            let CreateTable { name, columns, .. } = *ct;
             assert_eq!(name.to_string(), "foo");
             assert_eq!(
                 vec![
@@ -1827,7 +1844,8 @@ fn parse_signed_data_types() {
 fn parse_deprecated_mysql_unsigned_data_types() {
     let sql = "CREATE TABLE foo (bar_decimal DECIMAL UNSIGNED, bar_decimal_prec DECIMAL(10) UNSIGNED, bar_decimal_scale DECIMAL(10,2) UNSIGNED, bar_dec DEC UNSIGNED, bar_dec_prec DEC(10) UNSIGNED, bar_dec_scale DEC(10,2) UNSIGNED, bar_float FLOAT UNSIGNED, bar_float_prec FLOAT(10) UNSIGNED, bar_float_scale FLOAT(10,2) UNSIGNED, bar_double DOUBLE UNSIGNED, bar_double_prec DOUBLE(10) UNSIGNED, bar_double_scale DOUBLE(10,2) UNSIGNED, bar_real REAL UNSIGNED, bar_double_precision DOUBLE PRECISION UNSIGNED)";
     match mysql().verified_stmt(sql) {
-        Statement::CreateTable(CreateTable { name, columns, .. }) => {
+        Statement::CreateTable(ct) => {
+            let CreateTable { name, columns, .. } = *ct;
             assert_eq!(name.to_string(), "foo");
             assert_eq!(
                 vec![
@@ -2721,19 +2739,24 @@ fn parse_insert_with_numeric_prefix_column_name() {
 fn parse_update_with_joins() {
     let sql = "UPDATE orders AS o JOIN customers AS c ON o.customer_id = c.id SET o.completed = true WHERE c.firstname = 'Peter'";
     match mysql().verified_stmt(sql) {
-        Statement::Update(Update {
-            table,
-            assignments,
-            from: _from,
-            selection,
-            returning,
-            or: None,
-            order_by: _,
-            limit: None,
-            optimizer_hints,
-            update_token: _,
-            output: _,
-        }) if optimizer_hints.is_empty() => {
+        Statement::Update(u) => {
+            let Update {
+                table,
+                assignments,
+                from: _from,
+                selection,
+                returning,
+                or: None,
+                order_by: _,
+                limit: None,
+                optimizer_hints,
+                update_token: _,
+                output: _,
+            } = *u
+            else {
+                unreachable!()
+            };
+            assert!(optimizer_hints.is_empty());
             assert_eq!(
                 TableWithJoins {
                     relation: TableFactor::Table {
@@ -2810,7 +2833,8 @@ fn parse_update_with_joins() {
 fn parse_update_with_order_by() {
     let sql = "UPDATE foo SET bar = false WHERE foo = true ORDER BY foo ASC";
     match mysql_and_generic().verified_stmt(sql) {
-        Statement::Update(Update { order_by, .. }) => {
+        Statement::Update(u) => {
+            let Update { order_by, .. } = *u;
             assert_eq!(
                 vec![OrderByExpr {
                     expr: Expr::Identifier(Ident {
@@ -2835,9 +2859,10 @@ fn parse_update_with_order_by() {
 fn parse_update_with_order_by_and_limit() {
     let sql = "UPDATE foo SET bar = false WHERE foo = true ORDER BY foo ASC LIMIT 10";
     match mysql_and_generic().verified_stmt(sql) {
-        Statement::Update(Update {
-            order_by, limit, ..
-        }) => {
+        Statement::Update(u) => {
+            let Update {
+                order_by, limit, ..
+            } = *u;
             assert_eq!(
                 vec![OrderByExpr {
                     expr: Expr::Identifier(Ident {
@@ -3481,7 +3506,8 @@ fn parse_kill() {
 fn parse_table_column_option_on_update() {
     let sql1 = "CREATE TABLE foo (`modification_time` DATETIME ON UPDATE CURRENT_TIMESTAMP())";
     match mysql().verified_stmt(sql1) {
-        Statement::CreateTable(CreateTable { name, columns, .. }) => {
+        Statement::CreateTable(ct) => {
+            let CreateTable { name, columns, .. } = *ct;
             assert_eq!(name.to_string(), "foo");
             assert_eq!(
                 vec![ColumnDef {
@@ -3860,7 +3886,8 @@ fn parse_convert_using() {
 fn parse_create_table_with_column_collate() {
     let sql = "CREATE TABLE tb (id TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci)";
     match mysql().verified_stmt(sql) {
-        Statement::CreateTable(CreateTable { name, columns, .. }) => {
+        Statement::CreateTable(ct) => {
+            let CreateTable { name, columns, .. } = *ct;
             assert_eq!(name.to_string(), "tb");
             assert_eq!(
                 vec![ColumnDef {
@@ -4218,7 +4245,8 @@ fn parse_create_view_multiple_params() {
 fn parse_longblob_type() {
     let sql = "CREATE TABLE foo (bar LONGBLOB)";
     let stmt = mysql_and_generic().verified_stmt(sql);
-    if let Statement::CreateTable(CreateTable { columns, .. }) = stmt {
+    if let Statement::CreateTable(ct) = stmt {
+        let CreateTable { columns, .. } = *ct;
         assert_eq!(columns.len(), 1);
         assert_eq!(columns[0].data_type, DataType::LongBlob);
     } else {
@@ -4481,7 +4509,8 @@ fn test_variable_assignment_using_colon_equal() {
     let stmt = mysql().verified_stmt(sql_update);
 
     match stmt {
-        Statement::Update(Update { assignments, .. }) => {
+        Statement::Update(u) => {
+            let Update { assignments, .. } = *u;
             assert_eq!(
                 assignments,
                 vec![Assignment {

@@ -676,7 +676,7 @@ impl TryFrom<Statement> for CreateTableBuilder {
     // ownership.
     fn try_from(stmt: Statement) -> Result<Self, Self::Error> {
         match stmt {
-            Statement::CreateTable(create_table) => Ok(create_table.into()),
+            Statement::CreateTable(create_table) => Ok((*create_table).into()),
             _ => Err(ParserError::ParserError(format!(
                 "Expected create table statement, but received: {stmt}"
             ))),

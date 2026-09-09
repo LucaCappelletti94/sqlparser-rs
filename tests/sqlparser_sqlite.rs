@@ -130,11 +130,15 @@ fn pragma_eq_placeholder_style() {
 fn parse_create_table_without_rowid() {
     let sql = "CREATE TABLE t (a INT) WITHOUT ROWID";
     match sqlite_and_generic().verified_stmt(sql) {
-        Statement::CreateTable(CreateTable {
-            name,
-            without_rowid: true,
-            ..
-        }) => {
+        Statement::CreateTable(ct) => {
+            let CreateTable {
+                name,
+                without_rowid: true,
+                ..
+            } = *ct
+            else {
+                unreachable!()
+            };
             assert_eq!("t", name.to_string());
         }
         _ => unreachable!(),
@@ -209,7 +213,8 @@ fn double_equality_operator() {
 fn parse_create_table_auto_increment() {
     let sql = "CREATE TABLE foo (bar INT PRIMARY KEY AUTOINCREMENT)";
     match sqlite_and_generic().verified_stmt(sql) {
-        Statement::CreateTable(CreateTable { name, columns, .. }) => {
+        Statement::CreateTable(ct) => {
+            let CreateTable { name, columns, .. } = *ct;
             assert_eq!(name.to_string(), "foo");
             assert_eq!(
                 vec![ColumnDef {
@@ -270,14 +275,16 @@ fn parse_create_table_primary_key_asc_desc() {
 
     let sql = "CREATE TABLE foo (bar INT PRIMARY KEY ASC)";
     match sqlite_and_generic().verified_stmt(sql) {
-        Statement::CreateTable(CreateTable { columns, .. }) => {
+        Statement::CreateTable(ct) => {
+            let CreateTable { columns, .. } = *ct;
             assert_eq!(vec![expected_column_def("ASC")], columns);
         }
         _ => unreachable!(),
     }
     let sql = "CREATE TABLE foo (bar INT PRIMARY KEY DESC)";
     match sqlite_and_generic().verified_stmt(sql) {
-        Statement::CreateTable(CreateTable { columns, .. }) => {
+        Statement::CreateTable(ct) => {
+            let CreateTable { columns, .. } = *ct;
             assert_eq!(vec![expected_column_def("DESC")], columns);
         }
         _ => unreachable!(),
@@ -288,7 +295,8 @@ fn parse_create_table_primary_key_asc_desc() {
 fn parse_create_sqlite_quote() {
     let sql = "CREATE TABLE `PRIMARY` (\"KEY\" INT, [INDEX] INT)";
     match sqlite().verified_stmt(sql) {
-        Statement::CreateTable(CreateTable { name, columns, .. }) => {
+        Statement::CreateTable(ct) => {
+            let CreateTable { name, columns, .. } = *ct;
             assert_eq!(name.to_string(), "`PRIMARY`");
             assert_eq!(
                 vec![
@@ -337,7 +345,8 @@ fn parse_create_table_on_conflict_col() {
     ] {
         let sql = format!("CREATE TABLE t1 (a INT, b INT ON CONFLICT {keyword:?})");
         match sqlite_and_generic().verified_stmt(&sql) {
-            Statement::CreateTable(CreateTable { columns, .. }) => {
+            Statement::CreateTable(ct) => {
+                let CreateTable { columns, .. } = *ct;
                 assert_eq!(
                     vec![ColumnOptionDef {
                         name: None,
@@ -389,7 +398,8 @@ fn test_placeholder() {
 #[test]
 fn parse_create_table_with_strict() {
     let sql = "CREATE TABLE Fruits (id TEXT NOT NULL PRIMARY KEY) STRICT";
-    if let Statement::CreateTable(CreateTable { name, strict, .. }) = sqlite().verified_stmt(sql) {
+    if let Statement::CreateTable(ct) = sqlite().verified_stmt(sql) {
+        let CreateTable { name, strict, .. } = *ct;
         assert_eq!(name.to_string(), "Fruits");
         assert!(strict);
     }
@@ -478,7 +488,7 @@ fn parse_update_tuple_row_values() {
     // See https://github.com/sqlparser-rs/sqlparser-rs/issues/1311
     assert_eq!(
         sqlite().verified_stmt("UPDATE x SET (a, b) = (1, 2)"),
-        Statement::Update(Update {
+        Statement::Update(Box::new(Update {
             optimizer_hints: vec![],
             or: None,
             assignments: vec![Assignment {
@@ -502,7 +512,7 @@ fn parse_update_tuple_row_values() {
             order_by: vec![],
             limit: None,
             update_token: AttachedToken::empty()
-        })
+        }))
     );
 }
 
@@ -633,7 +643,8 @@ fn test_glob_operator() {
 #[test]
 fn test_update_delete_limit() {
     match sqlite().verified_stmt("UPDATE foo SET bar = 1 LIMIT 99") {
-        Statement::Update(Update { limit, .. }) => {
+        Statement::Update(inner) => {
+            let Update { limit, .. } = *inner;
             assert_eq!(limit, Some(Expr::value(number("99"))));
         }
         _ => unreachable!(),
