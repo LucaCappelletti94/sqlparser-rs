@@ -37,9 +37,9 @@ impl Parser<'_> {
         &mut self,
         merge_token: TokenWithSpan,
     ) -> Result<Box<SetExpr>, ParserError> {
-        Ok(Box::new(SetExpr::Merge(
+        Ok(Box::new(SetExpr::Merge(Box::new(
             self.parse_merge(merge_token)?.into(),
-        )))
+        ))))
     }
 
     /// Parse a `MERGE` statement

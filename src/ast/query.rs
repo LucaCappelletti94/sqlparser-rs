@@ -168,13 +168,13 @@ pub enum SetExpr {
     /// `VALUES (...)`
     Values(Values),
     /// `INSERT` statement
-    Insert(Statement),
+    Insert(Box<Statement>),
     /// `UPDATE` statement
-    Update(Statement),
+    Update(Box<Statement>),
     /// `DELETE` statement
-    Delete(Statement),
+    Delete(Box<Statement>),
     /// `MERGE` statement
-    Merge(Statement),
+    Merge(Box<Statement>),
     /// `TABLE` command
     Table(Box<Table>),
 }

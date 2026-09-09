@@ -14351,7 +14351,9 @@ impl<'a> Parser<'a> {
         &mut self,
         delete_token: TokenWithSpan,
     ) -> Result<Box<SetExpr>, ParserError> {
-        Ok(Box::new(SetExpr::Delete(self.parse_delete(delete_token)?)))
+        Ok(Box::new(SetExpr::Delete(Box::new(
+            self.parse_delete(delete_token)?,
+        ))))
     }
 
     /// Parse a `DELETE` statement and return `Statement::Delete`.
@@ -18413,7 +18415,9 @@ impl<'a> Parser<'a> {
         &mut self,
         insert_token: TokenWithSpan,
     ) -> Result<Box<SetExpr>, ParserError> {
-        Ok(Box::new(SetExpr::Insert(self.parse_insert(insert_token)?)))
+        Ok(Box::new(SetExpr::Insert(Box::new(
+            self.parse_insert(insert_token)?,
+        ))))
     }
 
     /// Parse an INSERT statement
@@ -18747,7 +18751,9 @@ impl<'a> Parser<'a> {
         &mut self,
         update_token: TokenWithSpan,
     ) -> Result<Box<SetExpr>, ParserError> {
-        Ok(Box::new(SetExpr::Update(self.parse_update(update_token)?)))
+        Ok(Box::new(SetExpr::Update(Box::new(
+            self.parse_update(update_token)?,
+        ))))
     }
 
     /// Parse an `UPDATE` statement and return `Statement::Update`.
