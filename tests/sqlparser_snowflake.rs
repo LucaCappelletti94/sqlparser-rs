@@ -560,7 +560,7 @@ fn test_snowflake_create_table_cluster_by() {
                 Some(WrappedCollection::Parentheses(vec![
                     Expr::Identifier(Ident::new("a")),
                     Expr::Identifier(Ident::new("b")),
-                    Expr::Function(Function {
+                    Expr::Function(Box::new(Function {
                         name: ObjectName::from(vec![Ident::new("my_func")]),
                         uses_odbc_syntax: false,
                         parameters: FunctionArguments::None,
@@ -575,7 +575,7 @@ fn test_snowflake_create_table_cluster_by() {
                         null_treatment: None,
                         over: None,
                         within_group: vec![],
-                    }),
+                    })),
                 ])),
                 cluster_by
             )
@@ -1471,7 +1471,7 @@ fn parse_delimited_identifiers() {
         expr_from_projection(&select.projection[0]),
     );
     assert_eq!(
-        &Expr::Function(Function {
+        &Expr::Function(Box::new(Function {
             name: ObjectName::from(vec![Ident::with_quote('"', "myfun")]),
             uses_odbc_syntax: false,
             parameters: FunctionArguments::None,
@@ -1484,7 +1484,7 @@ fn parse_delimited_identifiers() {
             null_treatment: None,
             over: None,
             within_group: vec![],
-        }),
+        })),
         expr_from_projection(&select.projection[1]),
     );
     match &select.projection[2] {
@@ -1689,7 +1689,7 @@ fn test_alter_table_clustering() {
                 [
                     Expr::Identifier(Ident::new("c1")),
                     Expr::Identifier(Ident::with_quote('"', "c2")),
-                    Expr::Function(Function {
+                    Expr::Function(Box::new(Function {
                         name: ObjectName::from(vec![Ident::new("TO_DATE")]),
                         uses_odbc_syntax: false,
                         parameters: FunctionArguments::None,
@@ -1704,7 +1704,7 @@ fn test_alter_table_clustering() {
                         null_treatment: None,
                         over: None,
                         within_group: vec![]
-                    })
+                    }))
                 ],
             );
         }
@@ -4706,10 +4706,10 @@ fn test_snowflake_identifier_function() {
         .verified_only_select("SELECT identifier('email') FROM customers")
         .projection[0]
     {
-        SelectItem::UnnamedExpr(Expr::Function(Function { name, args, .. })) => {
-            assert_eq!(*name, ObjectName::from(vec![Ident::new("identifier")]));
+        SelectItem::UnnamedExpr(Expr::Function(func)) => {
+            assert_eq!(func.name, ObjectName::from(vec![Ident::new("identifier")]));
             assert_eq!(
-                *args,
+                func.args,
                 FunctionArguments::List(FunctionArgumentList {
                     args: vec![FunctionArg::Unnamed(FunctionArgExpr::Expr(Expr::Value(
                         Value::SingleQuotedString("email".to_string()).into()
@@ -4727,10 +4727,10 @@ fn test_snowflake_identifier_function() {
         .verified_only_select(r#"SELECT identifier('"Email"') FROM customers"#)
         .projection[0]
     {
-        SelectItem::UnnamedExpr(Expr::Function(Function { name, args, .. })) => {
-            assert_eq!(*name, ObjectName::from(vec![Ident::new("identifier")]));
+        SelectItem::UnnamedExpr(Expr::Function(func)) => {
+            assert_eq!(func.name, ObjectName::from(vec![Ident::new("identifier")]));
             assert_eq!(
-                *args,
+                func.args,
                 FunctionArguments::List(FunctionArgumentList {
                     args: vec![FunctionArg::Unnamed(FunctionArgExpr::Expr(Expr::Value(
                         Value::SingleQuotedString("\"Email\"".to_string()).into()
@@ -4749,12 +4749,12 @@ fn test_snowflake_identifier_function() {
         .projection[0]
     {
         SelectItem::QualifiedWildcard(
-            SelectItemQualifiedWildcardKind::Expr(Expr::Function(Function { name, args, .. })),
+            SelectItemQualifiedWildcardKind::Expr(Expr::Function(func)),
             _,
         ) => {
-            assert_eq!(*name, ObjectName::from(vec![Ident::new("identifier")]));
+            assert_eq!(func.name, ObjectName::from(vec![Ident::new("identifier")]));
             assert_eq!(
-                *args,
+                func.args,
                 FunctionArguments::List(FunctionArgumentList {
                     args: vec![FunctionArg::Unnamed(FunctionArgExpr::Expr(Expr::Value(
                         Value::SingleQuotedString("alias1".to_string()).into()

@@ -1547,7 +1547,7 @@ impl<'a> Parser<'a> {
             | Keyword::USER
             if dialect_of!(self is PostgreSqlDialect | GenericDialect) =>
                 {
-                    Ok(Some(Expr::Function(Function {
+                    Ok(Some(Expr::Function(Box::new(Function {
                         name: ObjectName::from(vec![w.to_ident(w_span)]),
                         uses_odbc_syntax: false,
                         parameters: FunctionArguments::None,
@@ -1556,7 +1556,7 @@ impl<'a> Parser<'a> {
                         filter: None,
                         over: None,
                         within_group: vec![],
-                    })))
+                    }))))
                 }
             Keyword::CURRENT_TIMESTAMP
             | Keyword::CURRENT_TIME
@@ -1609,7 +1609,7 @@ impl<'a> Parser<'a> {
                     self.expect_token(&Token::LParen)?;
                     let query = self.parse_query()?;
                     self.expect_token(&Token::RParen)?;
-                    Ok(Some(Expr::Function(Function {
+                    Ok(Some(Expr::Function(Box::new(Function {
                         name: ObjectName::from(vec![w.to_ident(w_span)]),
                         uses_odbc_syntax: false,
                         parameters: FunctionArguments::None,
@@ -1618,7 +1618,7 @@ impl<'a> Parser<'a> {
                         null_treatment: None,
                         over: None,
                         within_group: vec![],
-                    })))
+                    }))))
                 }
             Keyword::NOT => Ok(Some(self.parse_not()?)),
             Keyword::MATCH if self.dialect.supports_match_against() => {
@@ -2513,7 +2513,7 @@ impl<'a> Parser<'a> {
             let fn_name = p.parse_object_name(false)?;
             let mut fn_call = p.parse_function_call(fn_name)?;
             fn_call.uses_odbc_syntax = true;
-            Ok(Expr::Function(fn_call))
+            Ok(Expr::Function(Box::new(fn_call)))
         })
     }
 
@@ -2536,7 +2536,8 @@ impl<'a> Parser<'a> {
 
     /// Parse a function call expression named by `name` and return it as an `Expr`.
     pub fn parse_function(&mut self, name: ObjectName) -> Result<Expr, ParserError> {
-        self.parse_function_call(name).map(Expr::Function)
+        self.parse_function_call(name)
+            .map(|f| Expr::Function(Box::new(f)))
     }
 
     fn parse_function_call(&mut self, name: ObjectName) -> Result<Function, ParserError> {
@@ -2656,7 +2657,7 @@ impl<'a> Parser<'a> {
         } else {
             FunctionArguments::None
         };
-        Ok(Expr::Function(Function {
+        Ok(Expr::Function(Box::new(Function {
             name,
             uses_odbc_syntax: false,
             parameters: FunctionArguments::None,
@@ -2665,7 +2666,7 @@ impl<'a> Parser<'a> {
             over: None,
             null_treatment: None,
             within_group: vec![],
-        }))
+        })))
     }
 
     /// Parse window frame `UNITS` clause: `ROWS`, `RANGE`, or `GROUPS`.
@@ -11947,7 +11948,7 @@ impl<'a> Parser<'a> {
         let object_name = self.parse_object_name(false)?;
         if self.peek_token_ref().token == Token::LParen {
             match self.parse_function(object_name)? {
-                Expr::Function(f) => Ok(Statement::Call(f)),
+                Expr::Function(f) => Ok(Statement::Call(*f)),
                 other => parser_err!(
                     format!("Expected a simple procedure call but found: {other}"),
                     self.peek_token_ref().span.start
@@ -14790,7 +14791,10 @@ impl<'a> Parser<'a> {
                     let function_expr = self.parse_function(function_name)?;
                     if let Expr::Function(function) = function_expr {
                         let alias = self.parse_identifier_optional_alias()?;
-                        pipe_operators.push(PipeOperator::Call { function, alias });
+                        pipe_operators.push(PipeOperator::Call {
+                            function: *function,
+                            alias,
+                        });
                     } else {
                         return Err(ParserError::ParserError(
                             "Expected function call after CALL".to_string(),

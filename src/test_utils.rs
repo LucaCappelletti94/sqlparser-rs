@@ -437,7 +437,7 @@ pub fn join(relation: TableFactor) -> Join {
 }
 
 pub fn call(function: &str, args: impl IntoIterator<Item = Expr>) -> Expr {
-    Expr::Function(Function {
+    Expr::Function(Box::new(Function {
         name: ObjectName::from(vec![Ident::new(function)]),
         uses_odbc_syntax: false,
         parameters: FunctionArguments::None,
@@ -453,7 +453,7 @@ pub fn call(function: &str, args: impl IntoIterator<Item = Expr>) -> Expr {
         null_treatment: None,
         over: None,
         within_group: vec![],
-    })
+    }))
 }
 
 /// Gets the first index column (mysql calls it a key part) of the first index found in a

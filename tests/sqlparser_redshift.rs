@@ -135,7 +135,7 @@ fn parse_delimited_identifiers() {
         expr_from_projection(&select.projection[0]),
     );
     assert_eq!(
-        &Expr::Function(Function {
+        &Expr::Function(Box::new(Function {
             name: ObjectName::from(vec![Ident::with_quote('"', "myfun")]),
             uses_odbc_syntax: false,
             parameters: FunctionArguments::None,
@@ -148,7 +148,7 @@ fn parse_delimited_identifiers() {
             filter: None,
             over: None,
             within_group: vec![],
-        }),
+        })),
         expr_from_projection(&select.projection[1]),
     );
     match &select.projection[2] {

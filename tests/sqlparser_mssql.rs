@@ -888,7 +888,7 @@ fn parse_delimited_identifiers() {
         expr_from_projection(&select.projection[0]),
     );
     assert_eq!(
-        &Expr::Function(Function {
+        &Expr::Function(Box::new(Function {
             name: ObjectName::from(vec![Ident::with_quote('"', "myfun")]),
             uses_odbc_syntax: false,
             parameters: FunctionArguments::None,
@@ -901,7 +901,7 @@ fn parse_delimited_identifiers() {
             filter: None,
             over: None,
             within_group: vec![],
-        }),
+        })),
         expr_from_projection(&select.projection[1]),
     );
     match &select.projection[2] {
@@ -981,10 +981,11 @@ fn parse_mssql_json_object() {
         "SELECT JSON_OBJECT('user_name' : USER_NAME(), LOWER(@id_key) : @id_value, 'sid' : (SELECT @@SPID) ABSENT ON NULL)",
     );
     match expr_from_projection(&select.projection[0]) {
-        Expr::Function(Function {
-            args: FunctionArguments::List(FunctionArgumentList { args, clauses, .. }),
-            ..
-        }) => {
+        Expr::Function(func) => {
+            let FunctionArguments::List(FunctionArgumentList { args, clauses, .. }) = &func.args
+            else {
+                unreachable!()
+            };
             assert!(matches!(
                 args[0],
                 FunctionArg::ExprNamed {
@@ -1031,13 +1032,12 @@ fn parse_mssql_json_object() {
     );
     match &select.projection[1] {
         SelectItem::ExprWithAlias {
-            expr:
-                Expr::Function(Function {
-                    args: FunctionArguments::List(FunctionArgumentList { args, .. }),
-                    ..
-                }),
+            expr: Expr::Function(func),
             ..
         } => {
+            let FunctionArguments::List(FunctionArgumentList { args, .. }) = &func.args else {
+                unreachable!()
+            };
             assert!(matches!(
                 args[0],
                 FunctionArg::ExprNamed {
@@ -1080,10 +1080,11 @@ fn parse_mssql_json_object() {
 fn parse_mssql_json_array() {
     let select = ms().verified_only_select("SELECT JSON_ARRAY('a', 1, NULL, 2 NULL ON NULL)");
     match expr_from_projection(&select.projection[0]) {
-        Expr::Function(Function {
-            args: FunctionArguments::List(FunctionArgumentList { args, clauses, .. }),
-            ..
-        }) => {
+        Expr::Function(func) => {
+            let FunctionArguments::List(FunctionArgumentList { args, clauses, .. }) = &func.args
+            else {
+                unreachable!()
+            };
             assert_eq!(
                 &[
                     FunctionArg::Unnamed(FunctionArgExpr::Expr(Expr::Value(
@@ -1112,10 +1113,11 @@ fn parse_mssql_json_array() {
     }
     let select = ms().verified_only_select("SELECT JSON_ARRAY('a', 1, NULL, 2 ABSENT ON NULL)");
     match expr_from_projection(&select.projection[0]) {
-        Expr::Function(Function {
-            args: FunctionArguments::List(FunctionArgumentList { args, clauses, .. }),
-            ..
-        }) => {
+        Expr::Function(func) => {
+            let FunctionArguments::List(FunctionArgumentList { args, clauses, .. }) = &func.args
+            else {
+                unreachable!()
+            };
             assert_eq!(
                 &[
                     FunctionArg::Unnamed(FunctionArgExpr::Expr(Expr::Value(
@@ -1144,10 +1146,11 @@ fn parse_mssql_json_array() {
     }
     let select = ms().verified_only_select("SELECT JSON_ARRAY(NULL ON NULL)");
     match expr_from_projection(&select.projection[0]) {
-        Expr::Function(Function {
-            args: FunctionArguments::List(FunctionArgumentList { args, clauses, .. }),
-            ..
-        }) => {
+        Expr::Function(func) => {
+            let FunctionArguments::List(FunctionArgumentList { args, clauses, .. }) = &func.args
+            else {
+                unreachable!()
+            };
             assert!(args.is_empty());
             assert_eq!(
                 &[FunctionArgumentClause::JsonNullClause(
@@ -1160,10 +1163,11 @@ fn parse_mssql_json_array() {
     }
     let select = ms().verified_only_select("SELECT JSON_ARRAY(ABSENT ON NULL)");
     match expr_from_projection(&select.projection[0]) {
-        Expr::Function(Function {
-            args: FunctionArguments::List(FunctionArgumentList { args, clauses, .. }),
-            ..
-        }) => {
+        Expr::Function(func) => {
+            let FunctionArguments::List(FunctionArgumentList { args, clauses, .. }) = &func.args
+            else {
+                unreachable!()
+            };
             assert!(args.is_empty());
             assert_eq!(
                 &[FunctionArgumentClause::JsonNullClause(
@@ -1178,10 +1182,11 @@ fn parse_mssql_json_array() {
         "SELECT JSON_ARRAY('a', JSON_OBJECT('name' : 'value', 'type' : 1) NULL ON NULL)",
     );
     match expr_from_projection(&select.projection[0]) {
-        Expr::Function(Function {
-            args: FunctionArguments::List(FunctionArgumentList { args, clauses, .. }),
-            ..
-        }) => {
+        Expr::Function(func) => {
+            let FunctionArguments::List(FunctionArgumentList { args, clauses, .. }) = &func.args
+            else {
+                unreachable!()
+            };
             assert_eq!(
                 &FunctionArg::Unnamed(FunctionArgExpr::Expr(Expr::Value(
                     (Value::SingleQuotedString("a".into())).with_empty_span()
@@ -1205,10 +1210,10 @@ fn parse_mssql_json_array() {
         "SELECT JSON_ARRAY('a', JSON_OBJECT('name' : 'value', 'type' : 1), JSON_ARRAY(1, NULL, 2 NULL ON NULL))",
     );
     match expr_from_projection(&select.projection[0]) {
-        Expr::Function(Function {
-            args: FunctionArguments::List(FunctionArgumentList { args, .. }),
-            ..
-        }) => {
+        Expr::Function(func) => {
+            let FunctionArguments::List(FunctionArgumentList { args, .. }) = &func.args else {
+                unreachable!()
+            };
             assert_eq!(
                 &FunctionArg::Unnamed(FunctionArgExpr::Expr(Expr::Value(
                     (Value::SingleQuotedString("a".into())).with_empty_span()
@@ -1228,10 +1233,10 @@ fn parse_mssql_json_array() {
     }
     let select = ms().verified_only_select("SELECT JSON_ARRAY(1, @id_value, (SELECT @@SPID))");
     match expr_from_projection(&select.projection[0]) {
-        Expr::Function(Function {
-            args: FunctionArguments::List(FunctionArgumentList { args, .. }),
-            ..
-        }) => {
+        Expr::Function(func) => {
+            let FunctionArguments::List(FunctionArgumentList { args, .. }) = &func.args else {
+                unreachable!()
+            };
             assert_eq!(
                 &FunctionArg::Unnamed(FunctionArgExpr::Expr(Expr::Value(
                     (number("1")).with_empty_span()
@@ -1256,13 +1261,13 @@ fn parse_mssql_json_array() {
     );
     match &select.projection[1] {
         SelectItem::ExprWithAlias {
-            expr:
-                Expr::Function(Function {
-                    args: FunctionArguments::List(FunctionArgumentList { args, clauses, .. }),
-                    ..
-                }),
+            expr: Expr::Function(func),
             ..
         } => {
+            let FunctionArguments::List(FunctionArgumentList { args, clauses, .. }) = &func.args
+            else {
+                unreachable!()
+            };
             assert!(matches!(
                 args[0],
                 FunctionArg::Unnamed(FunctionArgExpr::Expr(Expr::CompoundIdentifier(_)))
@@ -1864,7 +1869,7 @@ fn parse_create_table_with_valid_options() {
                         span: Span::empty(),
                     },
                     value: Expr::Function(
-                        Function {
+                        Box::new(Function {
                             name: ObjectName::from(
                                 vec![
                                     Ident {
@@ -1910,7 +1915,7 @@ fn parse_create_table_with_valid_options() {
                             null_treatment: None,
                             over: None,
                             within_group: vec![],
-                        },
+                        }),
                     ),
                 },
                 SqlOption::Ident("HEAP".into()),

@@ -3097,7 +3097,7 @@ fn parse_create_indices_with_operator_classes() {
 
             let expected_function_column = IndexColumn {
                 column: OrderByExpr {
-                    expr: Expr::Function(Function {
+                    expr: Expr::Function(Box::new(Function {
                         name: ObjectName(vec![ObjectNamePart::Identifier(Ident {
                             value: "concat_users_name".to_owned(),
                             quote_style: None,
@@ -3129,7 +3129,7 @@ fn parse_create_indices_with_operator_classes() {
                         null_treatment: None,
                         over: None,
                         within_group: vec![],
-                    }),
+                    })),
                     options: OrderByOptions {
                         sort: None,
                         nulls_first: None,
@@ -3571,7 +3571,7 @@ fn parse_array_subquery_expr() {
     let sql = "SELECT ARRAY(SELECT 1 UNION SELECT 2)";
     let select = pg().verified_only_select(sql);
     assert_eq!(
-        &Expr::Function(Function {
+        &Expr::Function(Box::new(Function {
             name: ObjectName::from(vec![Ident::new("ARRAY")]),
             uses_odbc_syntax: false,
             parameters: FunctionArguments::None,
@@ -3650,7 +3650,7 @@ fn parse_array_subquery_expr() {
             null_treatment: None,
             over: None,
             within_group: vec![]
-        }),
+        })),
         expr_from_projection(only(&select.projection)),
     );
 }
@@ -3914,10 +3914,10 @@ fn test_json() {
 #[test]
 fn json_object_colon_syntax() {
     match pg().verified_expr("JSON_OBJECT('name' : 'value')") {
-        Expr::Function(Function {
-            args: FunctionArguments::List(FunctionArgumentList { args, .. }),
-            ..
-        }) => {
+        Expr::Function(func) => {
+            let FunctionArguments::List(FunctionArgumentList { args, .. }) = &func.args else {
+                panic!("Expected FunctionArguments::List")
+            };
             assert!(
                 matches!(
                     &args[..],
@@ -3938,7 +3938,10 @@ fn json_object_colon_syntax() {
 #[test]
 fn json_object_value_syntax() {
     match pg().verified_expr("JSON_OBJECT('name' VALUE 'value')") {
-        Expr::Function(Function { args: FunctionArguments::List(FunctionArgumentList { args, .. }), .. }) => {
+        Expr::Function(func) => {
+            let FunctionArguments::List(FunctionArgumentList { args, .. }) = &func.args else {
+                panic!("Expected FunctionArguments::List")
+            };
             assert!(matches!(
                 &args[..],
                 &[FunctionArg::ExprNamed { operator: FunctionArgOperator::Value, .. }]
@@ -3953,54 +3956,85 @@ fn parse_json_object() {
     let sql = "JSON_OBJECT('name' VALUE 'value' NULL ON NULL)";
     let expr = pg().verified_expr(sql);
     assert!(
-        matches!(
-            expr.clone(),
-            Expr::Function(Function {
-                name: ObjectName(parts),
-                args: FunctionArguments::List(FunctionArgumentList { args, clauses, .. }),
-                ..
-            }) if parts == vec![ObjectNamePart::Identifier(Ident::new("JSON_OBJECT"))]
-                && matches!(
-                    &args[..],
-                    &[FunctionArg::ExprNamed { operator: FunctionArgOperator::Value, .. }]
-                )
-                && clauses == vec![FunctionArgumentClause::JsonNullClause(JsonNullClause::NullOnNull)]
-        ),
+        match expr.clone() {
+            Expr::Function(func) => match (&func.name, &func.args) {
+                (
+                    ObjectName(parts),
+                    FunctionArguments::List(FunctionArgumentList { args, clauses, .. }),
+                ) => {
+                    *parts == vec![ObjectNamePart::Identifier(Ident::new("JSON_OBJECT"))]
+                        && matches!(
+                            &args[..],
+                            &[FunctionArg::ExprNamed {
+                                operator: FunctionArgOperator::Value,
+                                ..
+                            }]
+                        )
+                        && *clauses
+                            == vec![FunctionArgumentClause::JsonNullClause(
+                                JsonNullClause::NullOnNull,
+                            )]
+                }
+                _ => false,
+            },
+            _ => false,
+        },
         "Failed to parse JSON_OBJECT with expected structure, got: {expr:?}"
     );
 
     let sql = "JSON_OBJECT('name' VALUE 'value' RETURNING JSONB)";
     let expr = pg().verified_expr(sql);
     assert!(
-        matches!(
-            expr.clone(),
-            Expr::Function(Function {
-                name: ObjectName(parts),
-                args: FunctionArguments::List(FunctionArgumentList { args, clauses, .. }),
-                ..
-            }) if parts == vec![ObjectNamePart::Identifier(Ident::new("JSON_OBJECT"))]
-                && matches!(
-                    &args[..],
-                    &[FunctionArg::ExprNamed { operator: FunctionArgOperator::Value, .. }]
-                )
-                && clauses == vec![FunctionArgumentClause::JsonReturningClause(JsonReturningClause { data_type: DataType::JSONB })]
-        ),
+        match expr.clone() {
+            Expr::Function(func) => match (&func.name, &func.args) {
+                (
+                    ObjectName(parts),
+                    FunctionArguments::List(FunctionArgumentList { args, clauses, .. }),
+                ) => {
+                    *parts == vec![ObjectNamePart::Identifier(Ident::new("JSON_OBJECT"))]
+                        && matches!(
+                            &args[..],
+                            &[FunctionArg::ExprNamed {
+                                operator: FunctionArgOperator::Value,
+                                ..
+                            }]
+                        )
+                        && *clauses
+                            == vec![FunctionArgumentClause::JsonReturningClause(
+                                JsonReturningClause {
+                                    data_type: DataType::JSONB,
+                                },
+                            )]
+                }
+                _ => false,
+            },
+            _ => false,
+        },
         "Failed to parse JSON_OBJECT with expected structure, got: {expr:?}"
     );
 
     let sql = "JSON_OBJECT(RETURNING JSONB)";
     let expr = pg().verified_expr(sql);
     assert!(
-        matches!(
-            expr.clone(),
-            Expr::Function(Function {
-                name: ObjectName(parts),
-                args: FunctionArguments::List(FunctionArgumentList { args, clauses, .. }),
-                ..
-            }) if parts == vec![ObjectNamePart::Identifier(Ident::new("JSON_OBJECT"))]
-                && args.is_empty()
-                && clauses == vec![FunctionArgumentClause::JsonReturningClause(JsonReturningClause { data_type: DataType::JSONB })]
-        ),
+        match expr.clone() {
+            Expr::Function(func) => match (&func.name, &func.args) {
+                (
+                    ObjectName(parts),
+                    FunctionArguments::List(FunctionArgumentList { args, clauses, .. }),
+                ) => {
+                    *parts == vec![ObjectNamePart::Identifier(Ident::new("JSON_OBJECT"))]
+                        && args.is_empty()
+                        && *clauses
+                            == vec![FunctionArgumentClause::JsonReturningClause(
+                                JsonReturningClause {
+                                    data_type: DataType::JSONB,
+                                },
+                            )]
+                }
+                _ => false,
+            },
+            _ => false,
+        },
         "Failed to parse JSON_OBJECT with expected structure, got: {expr:?}"
     );
 }
@@ -4065,7 +4099,7 @@ fn test_composite_value() {
     let select = pg().verified_only_select(sql);
     assert_eq!(
         &Expr::CompoundFieldAccess {
-            root: Box::new(Expr::Nested(Box::new(Expr::Function(Function {
+            root: Box::new(Expr::Nested(Box::new(Expr::Function(Box::new(Function {
                 name: ObjectName::from(vec![
                     Ident::new("information_schema"),
                     Ident::new("_pg_expandarray")
@@ -4093,7 +4127,7 @@ fn test_composite_value() {
                 filter: None,
                 over: None,
                 within_group: vec![],
-            })))),
+            }))))),
             access_chain: vec![AccessExpr::Dot(Expr::Identifier(Ident::new("n")))],
         },
         expr_from_projection(&select.projection[0])
@@ -4303,7 +4337,7 @@ fn parse_current_functions() {
     let sql = "SELECT CURRENT_CATALOG, CURRENT_USER, SESSION_USER, USER";
     let select = pg_and_generic().verified_only_select(sql);
     assert_eq!(
-        &Expr::Function(Function {
+        &Expr::Function(Box::new(Function {
             name: ObjectName::from(vec![Ident::new("CURRENT_CATALOG")]),
             uses_odbc_syntax: false,
             parameters: FunctionArguments::None,
@@ -4312,11 +4346,11 @@ fn parse_current_functions() {
             filter: None,
             over: None,
             within_group: vec![],
-        }),
+        })),
         expr_from_projection(&select.projection[0])
     );
     assert_eq!(
-        &Expr::Function(Function {
+        &Expr::Function(Box::new(Function {
             name: ObjectName::from(vec![Ident::new("CURRENT_USER")]),
             uses_odbc_syntax: false,
             parameters: FunctionArguments::None,
@@ -4325,11 +4359,11 @@ fn parse_current_functions() {
             filter: None,
             over: None,
             within_group: vec![],
-        }),
+        })),
         expr_from_projection(&select.projection[1])
     );
     assert_eq!(
-        &Expr::Function(Function {
+        &Expr::Function(Box::new(Function {
             name: ObjectName::from(vec![Ident::new("SESSION_USER")]),
             uses_odbc_syntax: false,
             parameters: FunctionArguments::None,
@@ -4338,11 +4372,11 @@ fn parse_current_functions() {
             filter: None,
             over: None,
             within_group: vec![],
-        }),
+        })),
         expr_from_projection(&select.projection[2])
     );
     assert_eq!(
-        &Expr::Function(Function {
+        &Expr::Function(Box::new(Function {
             name: ObjectName::from(vec![Ident::new("USER")]),
             uses_odbc_syntax: false,
             parameters: FunctionArguments::None,
@@ -4351,7 +4385,7 @@ fn parse_current_functions() {
             filter: None,
             over: None,
             within_group: vec![],
-        }),
+        })),
         expr_from_projection(&select.projection[3])
     );
 }
@@ -4849,7 +4883,7 @@ fn parse_delimited_identifiers() {
         expr_from_projection(&select.projection[0]),
     );
     assert_eq!(
-        &Expr::Function(Function {
+        &Expr::Function(Box::new(Function {
             name: ObjectName::from(vec![Ident::with_quote('"', "myfun")]),
             uses_odbc_syntax: false,
             parameters: FunctionArguments::None,
@@ -4862,7 +4896,7 @@ fn parse_delimited_identifiers() {
             filter: None,
             over: None,
             within_group: vec![],
-        }),
+        })),
         expr_from_projection(&select.projection[1]),
     );
     match &select.projection[2] {

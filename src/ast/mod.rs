@@ -1259,7 +1259,7 @@ pub enum Expr {
     /// as well as constants of other types (a non-standard PostgreSQL extension).
     TypedString(TypedString),
     /// Scalar function call e.g. `LEFT(foo, 5)`
-    Function(Function),
+    Function(Box<Function>),
     /// `CASE [<operand>] WHEN <condition> THEN <result> ... [ELSE <result>] END`
     ///
     /// Note we only recognize a complete single expression as `<condition>`,

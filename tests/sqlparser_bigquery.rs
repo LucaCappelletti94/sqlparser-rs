@@ -2261,7 +2261,7 @@ fn parse_map_access_expr() {
                 },
             }),
             AccessExpr::Subscript(Subscript::Index {
-                index: Expr::Function(Function {
+                index: Expr::Function(Box::new(Function {
                     name: ObjectName::from(vec![Ident::with_span(
                         Span::new(Location::of(1, 11), Location::of(1, 22)),
                         "safe_offset",
@@ -2279,7 +2279,7 @@ fn parse_map_access_expr() {
                     over: None,
                     within_group: vec![],
                     uses_odbc_syntax: false,
-                }),
+                })),
             }),
             AccessExpr::Dot(Expr::Identifier(Ident::with_span(
                 Span::new(Location::of(1, 24), Location::of(1, 25)),

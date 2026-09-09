@@ -852,13 +852,12 @@ fn parse_prefix_key_part() {
         "CREATE TABLE t (textcol TEXT, INDEX idx_index (textcol(10)))",
     ] {
         match index_column(mysql_and_generic().verified_stmt(sql)) {
-            Expr::Function(Function {
-                name,
-                args: FunctionArguments::List(FunctionArgumentList { args, .. }),
-                ..
-            }) => {
-                assert_eq!(name.to_string(), "textcol");
-                assert_eq!(args, expected);
+            Expr::Function(func) => {
+                let FunctionArguments::List(FunctionArgumentList { args, .. }) = &func.args else {
+                    panic!("unexpected args for {sql}")
+                };
+                assert_eq!(func.name.to_string(), "textcol");
+                assert_eq!(*args, expected);
             }
             expr => panic!("unexpected expression {expr} for {sql}"),
         }
