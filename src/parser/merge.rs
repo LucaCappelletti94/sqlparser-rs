@@ -141,7 +141,7 @@ impl Parser<'_> {
                         None
                     };
                     let delete_predicate = if self.parse_keyword(Keyword::DELETE) {
-                        let _ = self.expect_keyword(Keyword::WHERE)?;
+                        self.expect_keyword_is(Keyword::WHERE)?;
                         Some(self.parse_expr()?)
                     } else {
                         None

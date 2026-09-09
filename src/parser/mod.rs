@@ -1374,7 +1374,7 @@ impl<'a> Parser<'a> {
                 let [maybe_mul, maybe_rparen] = self.peek_tokens_ref();
                 if maybe_mul.token == Token::Mul && maybe_rparen.token == Token::RParen {
                     let mul_token = self.next_token(); // consume Mul
-                    self.next_token(); // consume RParen
+                    self.advance_token(); // consume RParen
                     return Ok(Expr::Wildcard(AttachedToken(mul_token)));
                 }
             }
@@ -1511,10 +1511,10 @@ impl<'a> Parser<'a> {
     /// Parses a `RENAME TABLE` statement. See [Statement::RenameTable]
     pub fn parse_rename(&mut self) -> Result<Statement, ParserError> {
         if self.peek_keyword(Keyword::TABLE) {
-            self.expect_keyword(Keyword::TABLE)?;
+            self.expect_keyword_is(Keyword::TABLE)?;
             let rename_tables = self.parse_comma_separated(|parser| {
                 let old_name = parser.parse_object_name(false)?;
-                parser.expect_keyword(Keyword::TO)?;
+                parser.expect_keyword_is(Keyword::TO)?;
                 let new_name = parser.parse_object_name(false)?;
 
                 Ok(RenameTable { old_name, new_name })
@@ -2482,13 +2482,18 @@ impl<'a> Parser<'a> {
     /// https://learn.microsoft.com/en-us/sql/odbc/reference/develop-app/date-time-and-timestamp-literals?view=sql-server-2017
     fn maybe_parse_odbc_body_datetime(&mut self) -> Result<Option<Expr>, ParserError> {
         self.maybe_parse(|p| {
-            let token = p.next_token().clone();
-            let word_string = token.token.to_string();
-            let data_type = match word_string.as_str() {
-                "t" => DataType::Time(None, TimezoneInfo::None),
-                "d" => DataType::Date,
-                "ts" => DataType::Timestamp(None, TimezoneInfo::None),
-                _ => return p.expected("ODBC datetime keyword (t, d, or ts)", token),
+            let token = p.next_token();
+            let data_type = match &token.token {
+                Token::Word(w) if w.quote_style.is_none() => match w.value.as_str() {
+                    "t" => Some(DataType::Time(None, TimezoneInfo::None)),
+                    "d" => Some(DataType::Date),
+                    "ts" => Some(DataType::Timestamp(None, TimezoneInfo::None)),
+                    _ => None,
+                },
+                _ => None,
+            };
+            let Some(data_type) = data_type else {
+                return p.expected("ODBC datetime keyword (t, d, or ts)", token);
             };
             let value = p.parse_value()?;
             Ok(Expr::TypedString(TypedString {
@@ -3579,7 +3584,7 @@ impl<'a> Parser<'a> {
         if self.peek_token_ref().token != Token::Lt {
             return Ok((Default::default(), false.into()));
         }
-        self.next_token();
+        self.advance_token();
 
         let mut field_defs = vec![];
         let trailing_bracket = loop {
@@ -3632,7 +3637,10 @@ impl<'a> Parser<'a> {
         // Look beyond the next item to infer whether both field name
         // and type are specified.
         let is_named_field = matches!(
-            (self.peek_nth_token(0).token, self.peek_nth_token(1).token),
+            (
+                &self.peek_nth_token_ref(0).token,
+                &self.peek_nth_token_ref(1).token,
+            ),
             (Token::Word(_), Token::Word(_)) | (Token::Word(_), Token::Colon)
         );
 
@@ -3821,11 +3829,11 @@ impl<'a> Parser<'a> {
         let trailing_bracket = if !trailing_bracket.0 {
             match &self.peek_token_ref().token {
                 Token::Gt => {
-                    self.next_token();
+                    self.advance_token();
                     false.into()
                 }
                 Token::ShiftRight => {
-                    self.next_token();
+                    self.advance_token();
                     true.into()
                 }
                 _ => return self.expected_ref(">", self.peek_token_ref()),
@@ -4366,7 +4374,7 @@ impl<'a> Parser<'a> {
         loop {
             match self.next_token().token {
                 Token::Colon if path.is_empty() && self.peek_token_ref() == &Token::LBracket => {
-                    self.next_token();
+                    self.advance_token();
                     let key = self.parse_wildcard_expr()?;
                     self.expect_token(&Token::RBracket)?;
                     path.push(JsonPathElem::ColonBracket { key });
@@ -5127,7 +5135,10 @@ impl<'a> Parser<'a> {
             return Ok(vec![]);
         }
 
-        if self.options.trailing_commas && self.peek_tokens() == [Token::Comma, end_token] {
+        if self.options.trailing_commas
+            && self.peek_token_ref().token == Token::Comma
+            && self.peek_nth_token_ref(1).token == end_token
+        {
             let _ = self.consume_token(&Token::Comma);
             return Ok(vec![]);
         }
@@ -5257,7 +5268,7 @@ impl<'a> Parser<'a> {
         let volatile = self.parse_keyword(Keyword::VOLATILE);
         let unlogged = self.peek_keywords(&[Keyword::UNLOGGED, Keyword::TABLE]);
         if unlogged {
-            self.expect_keyword(Keyword::UNLOGGED)?;
+            self.expect_keyword_is(Keyword::UNLOGGED)?;
         }
         let persistent = dialect_of!(self is DuckDbDialect)
             && self.parse_one_of_keywords(&[Keyword::PERSISTENT]).is_some();
@@ -5603,7 +5614,7 @@ impl<'a> Parser<'a> {
         match &self.peek_token_ref().token {
             Token::Word(word) => match word.keyword {
                 Keyword::AS => {
-                    self.next_token();
+                    self.advance_token();
                     Ok((true, self.parse_query()?))
                 }
                 _ => Ok((false, self.parse_query()?)),
@@ -6108,7 +6119,7 @@ impl<'a> Parser<'a> {
     ) -> Result<CreateFunction, ParserError> {
         let (name, args) = self.parse_create_function_name_and_params()?;
 
-        self.expect_keyword(Keyword::RETURNS)?;
+        self.expect_keyword_is(Keyword::RETURNS)?;
 
         let return_table = self.maybe_parse(|p| {
             let return_table_name = p.parse_identifier()?;
@@ -7446,7 +7457,7 @@ impl<'a> Parser<'a> {
     /// [PostgreSQL Documentation](https://www.postgresql.org/docs/current/sql-createopfamily.html)
     pub fn parse_create_operator_family(&mut self) -> Result<CreateOperatorFamily, ParserError> {
         let name = self.parse_object_name(false)?;
-        self.expect_keyword(Keyword::USING)?;
+        self.expect_keyword_is(Keyword::USING)?;
         let using = self.parse_identifier()?;
 
         Ok(CreateOperatorFamily { name, using })
@@ -7460,7 +7471,7 @@ impl<'a> Parser<'a> {
         let default = self.parse_keyword(Keyword::DEFAULT);
         self.expect_keywords(&[Keyword::FOR, Keyword::TYPE])?;
         let for_type = self.parse_data_type()?;
-        self.expect_keyword(Keyword::USING)?;
+        self.expect_keyword_is(Keyword::USING)?;
         let using = self.parse_identifier()?;
 
         let family = if self.parse_keyword(Keyword::FAMILY) {
@@ -7469,7 +7480,7 @@ impl<'a> Parser<'a> {
             None
         };
 
-        self.expect_keyword(Keyword::AS)?;
+        self.expect_keyword_is(Keyword::AS)?;
 
         let mut items = vec![];
         loop {
@@ -8091,11 +8102,11 @@ impl<'a> Parser<'a> {
         let (declare_type, data_type) = match &self.peek_token_ref().token {
             Token::Word(w) => match w.keyword {
                 Keyword::CURSOR => {
-                    self.next_token();
+                    self.advance_token();
                     (Some(DeclareType::Cursor), None)
                 }
                 Keyword::AS => {
-                    self.next_token();
+                    self.advance_token();
                     (None, Some(self.parse_data_type()?))
                 }
                 _ => (None, Some(self.parse_data_type()?)),
@@ -8104,7 +8115,7 @@ impl<'a> Parser<'a> {
         };
 
         let (for_query, assignment) = if self.peek_keyword(Keyword::FOR) {
-            self.next_token();
+            self.advance_token();
             let query = Some(self.parse_query()?);
             (query, None)
         } else {
@@ -8137,11 +8148,11 @@ impl<'a> Parser<'a> {
     ) -> Result<Option<DeclareAssignment>, ParserError> {
         Ok(match &self.peek_token_ref().token {
             Token::Word(w) if w.keyword == Keyword::DEFAULT => {
-                self.next_token(); // Skip `DEFAULT`
+                self.advance_token(); // Skip `DEFAULT`
                 Some(DeclareAssignment::Default(Box::new(self.parse_expr()?)))
             }
             Token::Assignment => {
-                self.next_token(); // Skip `:=`
+                self.advance_token(); // Skip `:=`
                 Some(DeclareAssignment::DuckAssignment(Box::new(
                     self.parse_expr()?,
                 )))
@@ -8161,7 +8172,7 @@ impl<'a> Parser<'a> {
     ) -> Result<Option<DeclareAssignment>, ParserError> {
         Ok(match &self.peek_token_ref().token {
             Token::Eq => {
-                self.next_token(); // Skip `=`
+                self.advance_token(); // Skip `=`
                 Some(DeclareAssignment::MsSqlAssignment(Box::new(
                     self.parse_expr()?,
                 )))
@@ -8215,10 +8226,10 @@ impl<'a> Parser<'a> {
         };
 
         let position = if self.peek_keyword(Keyword::FROM) {
-            self.expect_keyword(Keyword::FROM)?;
+            self.expect_keyword_is(Keyword::FROM)?;
             FetchPosition::From
         } else if self.peek_keyword(Keyword::IN) {
-            self.expect_keyword(Keyword::IN)?;
+            self.expect_keyword_is(Keyword::IN)?;
             FetchPosition::In
         } else {
             return parser_err!("Expected FROM or IN", self.peek_token_ref().span.start);
@@ -8477,7 +8488,7 @@ impl<'a> Parser<'a> {
     pub fn parse_drop_operator_family(&mut self) -> Result<Statement, ParserError> {
         let if_exists = self.parse_keywords(&[Keyword::IF, Keyword::EXISTS]);
         let names = self.parse_comma_separated(|p| p.parse_object_name(false))?;
-        self.expect_keyword(Keyword::USING)?;
+        self.expect_keyword_is(Keyword::USING)?;
         let using = self.parse_identifier()?;
         let drop_behavior = self.parse_optional_drop_behavior();
         Ok(Statement::DropOperatorFamily(DropOperatorFamily {
@@ -8494,7 +8505,7 @@ impl<'a> Parser<'a> {
     pub fn parse_drop_operator_class(&mut self) -> Result<Statement, ParserError> {
         let if_exists = self.parse_keywords(&[Keyword::IF, Keyword::EXISTS]);
         let names = self.parse_comma_separated(|p| p.parse_object_name(false))?;
-        self.expect_keyword(Keyword::USING)?;
+        self.expect_keyword_is(Keyword::USING)?;
         let using = self.parse_identifier()?;
         let drop_behavior = self.parse_optional_drop_behavior();
         Ok(Statement::DropOperatorClass(DropOperatorClass {
@@ -9048,7 +9059,7 @@ impl<'a> Parser<'a> {
             }
             let from = self.parse_comma_separated(Parser::parse_partition_bound_value)?;
             self.expect_token(&Token::RParen)?;
-            self.expect_keyword(Keyword::TO)?;
+            self.expect_keyword_is(Keyword::TO)?;
             self.expect_token(&Token::LParen)?;
             if self.peek_token_ref().token == Token::RParen {
                 return self.expected_ref("at least one value", self.peek_token_ref());
@@ -9059,10 +9070,10 @@ impl<'a> Parser<'a> {
         } else if self.parse_keyword(Keyword::WITH) {
             // FOR VALUES WITH (MODULUS n, REMAINDER r)
             self.expect_token(&Token::LParen)?;
-            self.expect_keyword(Keyword::MODULUS)?;
+            self.expect_keyword_is(Keyword::MODULUS)?;
             let modulus = self.parse_literal_uint()?;
             self.expect_token(&Token::Comma)?;
-            self.expect_keyword(Keyword::REMAINDER)?;
+            self.expect_keyword_is(Keyword::REMAINDER)?;
             let remainder = self.parse_literal_uint()?;
             self.expect_token(&Token::RParen)?;
             Ok(ForValues::With { modulus, remainder })
@@ -11189,7 +11200,7 @@ impl<'a> Parser<'a> {
             Keyword::COLLATION => self.parse_alter_collation().map(Into::into),
             Keyword::TABLE => self.parse_alter_table(false),
             Keyword::ICEBERG => {
-                self.expect_keyword(Keyword::TABLE)?;
+                self.expect_keyword_is(Keyword::TABLE)?;
                 self.parse_alter_table(true)
             }
             Keyword::INDEX => {
@@ -11308,12 +11319,12 @@ impl<'a> Parser<'a> {
         } else if self.parse_keyword(Keyword::VOLATILE) {
             Some(AlterFunctionAction::Behavior(FunctionBehavior::Volatile))
         } else if self.parse_keyword(Keyword::NOT) {
-            self.expect_keyword(Keyword::LEAKPROOF)?;
+            self.expect_keyword_is(Keyword::LEAKPROOF)?;
             Some(AlterFunctionAction::Leakproof(false))
         } else if self.parse_keyword(Keyword::LEAKPROOF) {
             Some(AlterFunctionAction::Leakproof(true))
         } else if self.parse_keyword(Keyword::EXTERNAL) {
-            self.expect_keyword(Keyword::SECURITY)?;
+            self.expect_keyword_is(Keyword::SECURITY)?;
             let security = if self.parse_keyword(Keyword::DEFINER) {
                 FunctionSecurity::Definer
             } else if self.parse_keyword(Keyword::INVOKER) {
@@ -11549,7 +11560,7 @@ impl<'a> Parser<'a> {
             }))
         } else if self.parse_keywords(&[Keyword::RENAME, Keyword::VALUE]) {
             let existing_enum_value = self.parse_identifier()?;
-            self.expect_keyword(Keyword::TO)?;
+            self.expect_keyword_is(Keyword::TO)?;
             let new_enum_value = self.parse_identifier()?;
 
             Ok(Statement::AlterType(AlterType {
@@ -11837,7 +11848,7 @@ impl<'a> Parser<'a> {
     /// See <https://www.postgresql.org/docs/current/sql-alteropfamily.html>
     pub fn parse_alter_operator_family(&mut self) -> Result<AlterOperatorFamily, ParserError> {
         let name = self.parse_object_name(false)?;
-        self.expect_keyword(Keyword::USING)?;
+        self.expect_keyword_is(Keyword::USING)?;
         let using = self.parse_identifier()?;
 
         let operation = if self.parse_keyword(Keyword::ADD) {
@@ -11874,7 +11885,7 @@ impl<'a> Parser<'a> {
     /// Handles operations like `RENAME TO`, `OWNER TO`, and `SET SCHEMA`.
     pub fn parse_alter_operator_class(&mut self) -> Result<AlterOperatorClass, ParserError> {
         let name = self.parse_object_name(false)?;
-        self.expect_keyword(Keyword::USING)?;
+        self.expect_keyword_is(Keyword::USING)?;
         let using = self.parse_identifier()?;
 
         let operation = if self.parse_keywords(&[Keyword::RENAME, Keyword::TO]) {
@@ -12037,7 +12048,7 @@ impl<'a> Parser<'a> {
 
     /// Parse [Statement::Open]
     fn parse_open(&mut self) -> Result<Statement, ParserError> {
-        self.expect_keyword(Keyword::OPEN)?;
+        self.expect_keyword_is(Keyword::OPEN)?;
         Ok(Statement::Open(OpenStatement {
             cursor_name: self.parse_identifier()?,
         }))
@@ -12261,7 +12272,7 @@ impl<'a> Parser<'a> {
             }
             Some(Keyword::PARQUET) => CopyLegacyOption::Parquet,
             Some(Keyword::PARTITION) => {
-                self.expect_keyword(Keyword::BY)?;
+                self.expect_keyword_is(Keyword::BY)?;
                 let columns = self.parse_parenthesized_column_list(IsOptional::Mandatory, false)?;
                 let include = self.parse_keyword(Keyword::INCLUDE);
                 CopyLegacyOption::PartitionBy(UnloadPartitionBy { columns, include })
@@ -12542,7 +12553,7 @@ impl<'a> Parser<'a> {
             // string literals separated by newlines so we can concatenate them.
             let mut after_newline = false;
             loop {
-                match self.peek_token_no_skip().token {
+                match &self.peek_nth_token_no_skip_ref(0).token {
                     Token::Whitespace(Whitespace::Newline) => {
                         after_newline = true;
                         self.next_token_no_skip();
@@ -13876,8 +13887,8 @@ impl<'a> Parser<'a> {
                 let mut requires_whitespace = false;
                 let mut ident = w.into_ident(self.next_token().span);
                 if quote_style_is_none {
-                    while matches!(self.peek_token_no_skip().token, Token::Minus) {
-                        self.next_token();
+                    while matches!(self.peek_nth_token_no_skip_ref(0).token, Token::Minus) {
+                        self.advance_token();
                         ident.value.push('-');
 
                         let token = self
@@ -13941,7 +13952,7 @@ impl<'a> Parser<'a> {
     fn parse_view_columns(&mut self) -> Result<Vec<ViewColumnDef>, ParserError> {
         if self.consume_token(&Token::LParen) {
             if self.peek_token_ref().token == Token::RParen {
-                self.next_token();
+                self.advance_token();
                 Ok(vec![])
             } else {
                 let cols = self.parse_comma_separated_with_trailing_commas(
@@ -14048,7 +14059,7 @@ impl<'a> Parser<'a> {
     {
         if self.consume_token(&Token::LParen) {
             if allow_empty && self.peek_token_ref().token == Token::RParen {
-                self.next_token();
+                self.advance_token();
                 Ok(vec![])
             } else {
                 let cols = self.parse_comma_separated(|p| f(p))?;
@@ -14111,8 +14122,8 @@ impl<'a> Parser<'a> {
         ]) {
             Some(Keyword::YEAR) => {
                 if self.peek_keyword(Keyword::TO) {
-                    self.expect_keyword(Keyword::TO)?;
-                    self.expect_keyword(Keyword::MONTH)?;
+                    self.expect_keyword_is(Keyword::TO)?;
+                    self.expect_keyword_is(Keyword::MONTH)?;
                     Ok(Some(IntervalFields::YearToMonth))
                 } else {
                     Ok(Some(IntervalFields::Year))
@@ -14120,7 +14131,7 @@ impl<'a> Parser<'a> {
             }
             Some(Keyword::DAY) => {
                 if self.peek_keyword(Keyword::TO) {
-                    self.expect_keyword(Keyword::TO)?;
+                    self.expect_keyword_is(Keyword::TO)?;
                     match self.expect_one_of_keywords(&[
                         Keyword::HOUR,
                         Keyword::MINUTE,
@@ -14140,7 +14151,7 @@ impl<'a> Parser<'a> {
             }
             Some(Keyword::HOUR) => {
                 if self.peek_keyword(Keyword::TO) {
-                    self.expect_keyword(Keyword::TO)?;
+                    self.expect_keyword_is(Keyword::TO)?;
                     match self.expect_one_of_keywords(&[Keyword::MINUTE, Keyword::SECOND])? {
                         Keyword::MINUTE => Ok(Some(IntervalFields::HourToMinute)),
                         Keyword::SECOND => Ok(Some(IntervalFields::HourToSecond)),
@@ -14155,8 +14166,8 @@ impl<'a> Parser<'a> {
             }
             Some(Keyword::MINUTE) => {
                 if self.peek_keyword(Keyword::TO) {
-                    self.expect_keyword(Keyword::TO)?;
-                    self.expect_keyword(Keyword::SECOND)?;
+                    self.expect_keyword_is(Keyword::TO)?;
+                    self.expect_keyword_is(Keyword::SECOND)?;
                     Ok(Some(IntervalFields::MinuteToSecond))
                 } else {
                     Ok(Some(IntervalFields::Minute))
@@ -14833,9 +14844,9 @@ impl<'a> Parser<'a> {
                 Keyword::UNPIVOT => {
                     self.expect_token(&Token::LParen)?;
                     let value_column = self.parse_identifier()?;
-                    self.expect_keyword(Keyword::FOR)?;
+                    self.expect_keyword_is(Keyword::FOR)?;
                     let name_column = self.parse_identifier()?;
-                    self.expect_keyword(Keyword::IN)?;
+                    self.expect_keyword_is(Keyword::IN)?;
 
                     self.expect_token(&Token::LParen)?;
                     let unpivot_columns = self.parse_comma_separated(Parser::parse_identifier)?;
@@ -14939,7 +14950,7 @@ impl<'a> Parser<'a> {
         let mut root = None;
         let mut r#type = false;
         while self.peek_token_ref().token == Token::Comma {
-            self.next_token();
+            self.advance_token();
             if self.parse_keyword(Keyword::ELEMENTS) {
                 elements = true;
             } else if self.parse_keyword(Keyword::BINARY) {
@@ -14977,7 +14988,7 @@ impl<'a> Parser<'a> {
         let mut include_null_values = false;
         let mut without_array_wrapper = false;
         while self.peek_token_ref().token == Token::Comma {
-            self.next_token();
+            self.advance_token();
             if self.parse_keyword(Keyword::ROOT) {
                 self.expect_token(&Token::LParen)?;
                 root = Some(self.parse_literal_string()?);
@@ -15121,7 +15132,7 @@ impl<'a> Parser<'a> {
     ) -> Result<Box<SetExpr>, ParserError> {
         loop {
             // The query can be optionally followed by a set operator:
-            let op = self.parse_set_operator(&self.peek_token().token);
+            let op = self.parse_set_operator(&self.peek_token_ref().token);
             let next_precedence = match op {
                 // UNION and EXCEPT have the same binding power and evaluate left-to-right
                 Some(SetOperator::Union) | Some(SetOperator::Except) | Some(SetOperator::Minus) => {
@@ -15135,7 +15146,7 @@ impl<'a> Parser<'a> {
             if precedence >= next_precedence {
                 break;
             }
-            self.next_token(); // skip past the set operator
+            self.advance_token(); // skip past the set operator
             let set_quantifier = self.parse_set_quantifier(&op);
             expr = SetExpr::SetOperation {
                 left: Box::new(expr),
@@ -15149,7 +15160,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Parse a set operator token into its `SetOperator` variant.
-    pub fn parse_set_operator(&mut self, token: &Token) -> Option<SetOperator> {
+    pub fn parse_set_operator(&self, token: &Token) -> Option<SetOperator> {
         match token {
             Token::Word(w) if w.keyword == Keyword::UNION => Some(SetOperator::Union),
             Token::Word(w) if w.keyword == Keyword::EXCEPT => Some(SetOperator::Except),
@@ -15581,7 +15592,7 @@ impl<'a> Parser<'a> {
 
     /// Parse a `CONNECT BY` clause (Oracle-style hierarchical query support).
     pub fn maybe_parse_connect_by(&mut self) -> Result<Vec<ConnectByKind>, ParserError> {
-        let mut clauses = Vec::with_capacity(2);
+        let mut clauses = Vec::new();
         loop {
             if let Some(idx) = self.parse_keywords_indexed(&[Keyword::START, Keyword::WITH]) {
                 clauses.push(ConnectByKind::StartWith {
@@ -16340,7 +16351,7 @@ impl<'a> Parser<'a> {
                         }
                     }
                     kw @ Keyword::LEFT | kw @ Keyword::RIGHT => {
-                        let _ = self.next_token(); // consume LEFT/RIGHT
+                        self.advance_token(); // consume LEFT/RIGHT
                         let is_left = kw == Keyword::LEFT;
                         let join_type = self.parse_one_of_keywords(&[
                             Keyword::OUTER,
@@ -16388,17 +16399,17 @@ impl<'a> Parser<'a> {
                         }
                     }
                     Keyword::ANTI => {
-                        let _ = self.next_token(); // consume ANTI
+                        self.advance_token(); // consume ANTI
                         self.expect_keyword_is(Keyword::JOIN)?;
                         JoinOperator::Anti
                     }
                     Keyword::SEMI => {
-                        let _ = self.next_token(); // consume SEMI
+                        self.advance_token(); // consume SEMI
                         self.expect_keyword_is(Keyword::JOIN)?;
                         JoinOperator::Semi
                     }
                     Keyword::FULL => {
-                        let _ = self.next_token(); // consume FULL
+                        self.advance_token(); // consume FULL
                         let _ = self.parse_keyword(Keyword::OUTER); // [ OUTER ]
                         self.expect_keyword_is(Keyword::JOIN)?;
                         JoinOperator::FullOuter
@@ -16407,7 +16418,7 @@ impl<'a> Parser<'a> {
                         return self.expected_ref("LEFT, RIGHT, or FULL", self.peek_token_ref());
                     }
                     Keyword::STRAIGHT_JOIN => {
-                        let _ = self.next_token(); // consume STRAIGHT_JOIN
+                        self.advance_token(); // consume STRAIGHT_JOIN
                         JoinOperator::StraightJoin
                     }
                     _ if natural => {
@@ -16625,7 +16636,7 @@ impl<'a> Parser<'a> {
             }
         } else if self.dialect.supports_values_as_table_factor()
             && matches!(
-                self.peek_tokens(),
+                self.peek_tokens_ref().map(|t| &t.token),
                 [
                     Token::Word(Word {
                         keyword: Keyword::VALUES,
@@ -17034,7 +17045,7 @@ impl<'a> Parser<'a> {
         let name = self.parse_identifier()?;
 
         let option = if self.parse_keyword(Keyword::FOR) {
-            self.expect_keyword(Keyword::ORDINALITY)?;
+            self.expect_keyword_is(Keyword::ORDINALITY)?;
             XmlTableColumnOption::ForOrdinality
         } else {
             let r#type = self.parse_data_type()?;
@@ -17092,7 +17103,7 @@ impl<'a> Parser<'a> {
 
     /// Parse a [TableFactor::SemanticView]
     fn parse_semantic_view_table_factor(&mut self) -> Result<TableFactor, ParserError> {
-        self.expect_keyword(Keyword::SEMANTIC_VIEW)?;
+        self.expect_keyword_is(Keyword::SEMANTIC_VIEW)?;
         self.expect_token(&Token::LParen)?;
 
         let name = self.parse_object_name(true)?;
@@ -17486,12 +17497,13 @@ impl<'a> Parser<'a> {
     pub fn parse_openjson_table_column_def(&mut self) -> Result<OpenJsonTableColumn, ParserError> {
         let name = self.parse_identifier()?;
         let r#type = self.parse_data_type()?;
-        let path = if let Token::SingleQuotedString(path) = self.peek_token().token {
-            self.next_token();
-            Some(path)
-        } else {
-            None
+        let path = match &self.peek_token_ref().token {
+            Token::SingleQuotedString(path) => Some(path.clone()),
+            _ => None,
         };
+        if path.is_some() {
+            self.advance_token();
+        }
         let as_json = self.parse_keyword(Keyword::AS);
         if as_json {
             self.expect_keyword_is(Keyword::JSON)?;
@@ -18327,7 +18339,7 @@ impl<'a> Parser<'a> {
 
     /// Parse [`Statement::Deny`]
     pub fn parse_deny(&mut self) -> Result<Statement, ParserError> {
-        self.expect_keyword(Keyword::DENY)?;
+        self.expect_keyword_is(Keyword::DENY)?;
 
         let (privileges, objects) = self.parse_grant_deny_revoke_privileges_objects()?;
         let objects = match objects {
@@ -18762,7 +18774,7 @@ impl<'a> Parser<'a> {
         } else {
             None
         };
-        self.expect_keyword(Keyword::SET)?;
+        self.expect_keyword_is(Keyword::SET)?;
         let assignments = self.parse_comma_separated(Parser::parse_assignment)?;
 
         let output = self.maybe_parse_output_clause()?;
@@ -19168,9 +19180,9 @@ impl<'a> Parser<'a> {
             }
             expr if self.dialect.supports_select_item_multi_column_alias()
                 && self.peek_keyword(Keyword::AS)
-                && self.peek_nth_token(1).token == Token::LParen =>
+                && self.peek_nth_token_ref(1).token == Token::LParen =>
             {
-                self.expect_keyword(Keyword::AS)?;
+                self.expect_keyword_is(Keyword::AS)?;
                 self.expect_token(&Token::LParen)?;
                 let aliases = self.parse_comma_separated(|p| p.parse_identifier())?;
                 self.expect_token(&Token::RParen)?;
@@ -19656,7 +19668,7 @@ impl<'a> Parser<'a> {
 
     /// Parse a PostgreSQL `LOCK` statement.
     pub fn parse_lock_statement(&mut self) -> Result<Lock, ParserError> {
-        self.expect_keyword(Keyword::LOCK)?;
+        self.expect_keyword_is(Keyword::LOCK)?;
 
         if self.peek_keyword(Keyword::TABLES) {
             return self.expected_ref("TABLE or a table name", self.peek_token_ref());
@@ -19666,7 +19678,7 @@ impl<'a> Parser<'a> {
         let tables = self.parse_comma_separated(Parser::parse_lock_table_target)?;
         let lock_mode = if self.parse_keyword(Keyword::IN) {
             let lock_mode = self.parse_lock_table_mode()?;
-            self.expect_keyword(Keyword::MODE)?;
+            self.expect_keyword_is(Keyword::MODE)?;
             Some(lock_mode)
         } else {
             None
@@ -19807,7 +19819,7 @@ impl<'a> Parser<'a> {
 
             // We can have multiple `WHEN` arms so we consume all cases until `END`
             while !self.peek_keyword(Keyword::END) {
-                self.expect_keyword(Keyword::WHEN)?;
+                self.expect_keyword_is(Keyword::WHEN)?;
 
                 // Each `WHEN` case can have one or more conditions, e.g.
                 // WHEN EXCEPTION_1 [OR EXCEPTION_2] THEN
@@ -19831,7 +19843,7 @@ impl<'a> Parser<'a> {
             None
         };
 
-        self.expect_keyword(Keyword::END)?;
+        self.expect_keyword_is(Keyword::END)?;
 
         Ok(Statement::StartTransaction {
             begin: true,
@@ -20109,7 +20121,7 @@ impl<'a> Parser<'a> {
 
     /// Parse a SQL `UNLOAD` statement
     pub fn parse_unload(&mut self) -> Result<Statement, ParserError> {
-        self.expect_keyword(Keyword::UNLOAD)?;
+        self.expect_keyword_is(Keyword::UNLOAD)?;
         self.expect_token(&Token::LParen)?;
         let (query, query_text) =
             if matches!(self.peek_token_ref().token, Token::SingleQuotedString(_)) {
@@ -20917,11 +20929,11 @@ impl<'a> Parser<'a> {
         } else {
             None
         };
-        self.expect_keyword(Keyword::OPTIONS)?;
+        self.expect_keyword_is(Keyword::OPTIONS)?;
         self.expect_token(&Token::LParen)?;
         let options = self.parse_comma_separated(|p| p.parse_sql_option())?;
         self.expect_token(&Token::RParen)?;
-        self.expect_keyword(Keyword::AS)?;
+        self.expect_keyword_is(Keyword::AS)?;
         let query = self.parse_query()?;
         Ok(Statement::ExportData(ExportData {
             options,
@@ -20931,7 +20943,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_vacuum(&mut self) -> Result<Statement, ParserError> {
-        self.expect_keyword(Keyword::VACUUM)?;
+        self.expect_keyword_is(Keyword::VACUUM)?;
         let full = self.parse_keyword(Keyword::FULL);
         let sort_only = self.parse_keywords(&[Keyword::SORT, Keyword::ONLY]);
         let delete_only = self.parse_keywords(&[Keyword::DELETE, Keyword::ONLY]);
@@ -20942,7 +20954,7 @@ impl<'a> Parser<'a> {
                 Some(table_name) => {
                     let threshold = if self.parse_keyword(Keyword::TO) {
                         let value = self.parse_value()?;
-                        self.expect_keyword(Keyword::PERCENT)?;
+                        self.expect_keyword_is(Keyword::PERCENT)?;
                         Some(value)
                     } else {
                         None
@@ -21175,7 +21187,7 @@ impl<'a> Parser<'a> {
                 option_value: KeyValueOptionKind::Single(self.parse_value()?),
             }),
             Token::Word(word) => {
-                self.next_token();
+                self.advance_token();
                 Ok(KeyValueOption {
                     option_name: key.value.clone(),
                     option_value: KeyValueOptionKind::Single(

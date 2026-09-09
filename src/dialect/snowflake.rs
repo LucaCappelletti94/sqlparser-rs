@@ -653,7 +653,7 @@ impl Dialect for SnowflakeDialect {
         name_parts: &[ObjectNamePart],
     ) -> bool {
         ident.quote_style.is_none()
-            && ident.value.to_lowercase() == "identifier"
+            && ident.value.eq_ignore_ascii_case("identifier")
             && !name_parts
                 .iter()
                 .any(|p| matches!(p, ObjectNamePart::Function(_)))
@@ -1963,7 +1963,7 @@ fn parse_multi_table_insert_when_clauses(
     // Parse WHEN clauses
     while parser.parse_keyword(Keyword::WHEN) {
         let condition = parser.parse_expr()?;
-        parser.expect_keyword(Keyword::THEN)?;
+        parser.expect_keyword_is(Keyword::THEN)?;
 
         // Parse INTO clauses for this WHEN
         let into_clauses = parse_multi_table_insert_into_clauses(parser)?;
