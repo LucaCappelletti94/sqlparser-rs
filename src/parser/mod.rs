@@ -1767,6 +1767,25 @@ impl<'a> Parser<'a> {
         }
     }
 
+    /// Whether a typed string literal, e.g. `DATE '2020-05-20'`, can begin at the next token.
+    ///
+    /// A data type always starts with a word, and a word that is no keyword can only yield
+    /// [`DataType::Custom`], which [`Parser::parse_prefix_inner`] rejects outright except as
+    /// an `xml` literal or as the element of a bracketed array type.
+    fn peek_can_start_typed_string(&self) -> bool {
+        let Token::Word(w) = &self.peek_token_ref().token else {
+            return false;
+        };
+        if w.keyword != Keyword::NoKeyword {
+            return true;
+        }
+        (w.quote_style.is_none()
+            && w.value.eq_ignore_ascii_case("xml")
+            && self.dialect.supports_xml_expressions())
+            || (self.dialect.supports_array_typedef_with_brackets()
+                && self.peek_nth_token_ref(1).token == Token::LBracket)
+    }
+
     fn parse_prefix_inner(&mut self) -> Result<Expr, ParserError> {
         // PostgreSQL allows any string literal to be preceded by a type name, indicating that the
         // string literal represents a literal of that type. Some examples:
@@ -1784,48 +1803,52 @@ impl<'a> Parser<'a> {
         // Note also that naively `SELECT date` looks like a syntax error because the `date` type
         // name is not followed by a string literal, but in fact in PostgreSQL it is a valid
         // expression that should parse as the column name "date".
-        let loc = self.peek_token_ref().span.start;
-        let opt_expr = self.maybe_parse(|parser| {
-            match parser.parse_data_type()? {
-                DataType::Interval { .. } => parser.parse_interval(),
-                // PostgreSQL allows almost any identifier to be used as custom data type name,
-                // and we support that in `parse_data_type()`. But unlike Postgres we don't
-                // have a list of globally reserved keywords (since they vary across dialects),
-                // so given `NOT 'a' LIKE 'b'`, we'd accept `NOT` as a possible custom data type
-                // name, resulting in `NOT 'a'` being recognized as a `TypedString` instead of
-                // an unary negation `NOT ('a' LIKE 'b')`. To solve this, we don't accept the
-                // `type 'string'` syntax for the custom data types at all ...
-                //
-                // ... with the exception of `xml '...'` on dialects that support XML
-                // expressions, which is a valid PostgreSQL typed string literal.
-                DataType::Custom(ref name, ref modifiers)
-                    if modifiers.is_empty()
-                        && Self::is_simple_unquoted_object_name(name, "xml")
-                        && parser.dialect.supports_xml_expressions() =>
-                {
-                    Ok(Expr::TypedString(TypedString {
-                        data_type: DataType::Custom(name.clone(), modifiers.clone()),
+        let opt_expr = if self.peek_can_start_typed_string() {
+            self.maybe_parse(|parser| {
+                match parser.parse_data_type()? {
+                    DataType::Interval { .. } => parser.parse_interval(),
+                    // PostgreSQL allows almost any identifier to be used as custom data type name,
+                    // and we support that in `parse_data_type()`. But unlike Postgres we don't
+                    // have a list of globally reserved keywords (since they vary across dialects),
+                    // so given `NOT 'a' LIKE 'b'`, we'd accept `NOT` as a possible custom data type
+                    // name, resulting in `NOT 'a'` being recognized as a `TypedString` instead of
+                    // an unary negation `NOT ('a' LIKE 'b')`. To solve this, we don't accept the
+                    // `type 'string'` syntax for the custom data types at all ...
+                    //
+                    // ... with the exception of `xml '...'` on dialects that support XML
+                    // expressions, which is a valid PostgreSQL typed string literal.
+                    DataType::Custom(ref name, ref modifiers)
+                        if modifiers.is_empty()
+                            && Self::is_simple_unquoted_object_name(name, "xml")
+                            && parser.dialect.supports_xml_expressions() =>
+                    {
+                        Ok(Expr::TypedString(TypedString {
+                            data_type: DataType::Custom(name.clone(), modifiers.clone()),
+                            value: parser.parse_value()?,
+                            uses_odbc_syntax: false,
+                        }))
+                    }
+                    // The enclosing `maybe_parse` discards this, so carry no message.
+                    DataType::Custom(..) => Err(ParserError::ParserError(String::new())),
+                    // MySQL supports using the `BINARY` keyword as a cast to binary type.
+                    DataType::Binary(..) if self.dialect.supports_binary_kw_as_cast() => {
+                        Ok(Expr::Cast {
+                            kind: CastKind::Cast,
+                            expr: Box::new(parser.parse_expr()?),
+                            data_type: DataType::Binary(None),
+                            format: None,
+                        })
+                    }
+                    data_type => Ok(Expr::TypedString(TypedString {
+                        data_type,
                         value: parser.parse_value()?,
                         uses_odbc_syntax: false,
-                    }))
+                    })),
                 }
-                DataType::Custom(..) => parser_err!("dummy", loc),
-                // MySQL supports using the `BINARY` keyword as a cast to binary type.
-                DataType::Binary(..) if self.dialect.supports_binary_kw_as_cast() => {
-                    Ok(Expr::Cast {
-                        kind: CastKind::Cast,
-                        expr: Box::new(parser.parse_expr()?),
-                        data_type: DataType::Binary(None),
-                        format: None,
-                    })
-                }
-                data_type => Ok(Expr::TypedString(TypedString {
-                    data_type,
-                    value: parser.parse_value()?,
-                    uses_odbc_syntax: false,
-                })),
-            }
-        })?;
+            })?
+        } else {
+            None
+        };
 
         if let Some(expr) = opt_expr {
             return Ok(expr);
