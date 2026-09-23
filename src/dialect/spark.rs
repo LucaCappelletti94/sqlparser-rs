@@ -128,6 +128,16 @@ impl Dialect for SparkSqlDialect {
         true
     }
 
+    /// See <https://spark.apache.org/docs/latest/sql-ref-literals.html#string-literal>
+    fn supports_string_literal_backslash_escape(&self) -> bool {
+        true
+    }
+
+    /// See `unescapeSQLString` in <https://github.com/apache/spark/blob/master/sql/api/src/main/scala/org/apache/spark/sql/catalyst/util/SparkParserUtils.scala>
+    fn ignores_wildcard_escapes(&self) -> bool {
+        true
+    }
+
     /// Parse the `DIV` keyword as integer division.
     ///
     /// Example: `SELECT 10 DIV 3` returns `3`.

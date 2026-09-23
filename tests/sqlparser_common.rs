@@ -35,7 +35,7 @@ use sqlparser::ast::*;
 use sqlparser::dialect::{
     AnsiDialect, BigQueryDialect, ClickHouseDialect, DatabricksDialect, Dialect, DuckDbDialect,
     GenericDialect, HiveDialect, MsSqlDialect, MySqlDialect, OracleDialect, PostgreSqlDialect,
-    RedshiftSqlDialect, SQLiteDialect, SnowflakeDialect,
+    RedshiftSqlDialect, SQLiteDialect, SnowflakeDialect, SparkSqlDialect,
 };
 use sqlparser::keywords::{Keyword, ALL_KEYWORDS};
 use sqlparser::parser::{Parser, ParserError, ParserOptions};
@@ -20536,4 +20536,39 @@ fn roundtrip_backslash_escaped_string_literals() {
 
     let standard = all_dialects_where(|d| !d.supports_string_literal_backslash_escape());
     standard.verified_stmt(r"SELECT 'a\b', 'it''s'");
+}
+
+#[test]
+fn parse_hive_spark_backslash_escapes() {
+    let dialects =
+        TestedDialects::new(vec![Box::new(HiveDialect {}), Box::new(SparkSqlDialect {})]);
+
+    let select = dialects.verified_only_select(r"SELECT 'it\'s', 'a\\b', 'line\nbreak'");
+    let values: Vec<_> = select
+        .projection
+        .iter()
+        .map(|item| match expr_from_projection(item) {
+            Expr::Value(ValueWithSpan {
+                value: Value::SingleQuotedString(s, _),
+                ..
+            }) => s.as_str(),
+            expr => panic!("expected a string literal, got {expr}"),
+        })
+        .collect();
+    assert_eq!(values, ["it's", r"a\b", "line\nbreak"]);
+
+    dialects.one_statement_parses_to(
+        r#"INSERT INTO t VALUES ('it\'s', 'Misc. \"I\" Courses.')"#,
+        r#"INSERT INTO t VALUES ('it\'s', 'Misc. "I" Courses.')"#,
+    );
+    // Both engines keep the backslash of \% and \_ for LIKE patterns
+    dialects.one_statement_parses_to(r"SELECT 'a\%c\_'", r"SELECT 'a\\%c\\_'");
+
+    for dialect in &dialects.dialects {
+        let err = Parser::parse_sql(dialect.as_ref(), r"SELECT 'a\'").unwrap_err();
+        assert!(
+            err.to_string().contains("Unterminated string literal"),
+            "{err}"
+        );
+    }
 }

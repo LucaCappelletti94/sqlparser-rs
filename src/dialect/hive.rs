@@ -89,4 +89,14 @@ impl Dialect for HiveDialect {
     fn supports_map_literal_with_angle_brackets(&self) -> bool {
         true
     }
+
+    /// See <https://hive.apache.org/docs/latest/language/languagemanual-types/>
+    fn supports_string_literal_backslash_escape(&self) -> bool {
+        true
+    }
+
+    /// See `unescapeSQLString` in <https://github.com/apache/hive/blob/master/ql/src/java/org/apache/hadoop/hive/ql/parse/BaseSemanticAnalyzer.java>
+    fn ignores_wildcard_escapes(&self) -> bool {
+        true
+    }
 }
