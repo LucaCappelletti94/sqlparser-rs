@@ -142,4 +142,8 @@ impl Dialect for SQLiteDialect {
     fn supports_national_string_literal(&self) -> bool {
         false
     }
+
+    fn supports_window_function_base_window_name_as_keyword(&self) -> bool {
+        true
+    }
 }
