@@ -69,7 +69,8 @@ fn parse_table_time_travel() {
                 args: None,
                 with_hints: vec![],
                 version: Some(TableVersion::ForSystemTimeAsOf(Expr::Value(
-                    (Value::SingleQuotedString(version)).with_empty_span()
+                    (Value::SingleQuotedString(version, StringEscapeStyle::Standard))
+                        .with_empty_span()
                 ))),
                 partitions: vec![],
                 with_ordinality: false,
@@ -497,7 +498,10 @@ fn parse_mssql_openjson() {
                     json_expr: Expr::CompoundIdentifier(
                         vec![Ident::new("A"), Ident::new("param"),]
                     ),
-                    json_path: Some(Value::SingleQuotedString("$.config".into()).with_empty_span()),
+                    json_path: Some(
+                        Value::SingleQuotedString("$.config".into(), StringEscapeStyle::Standard)
+                            .with_empty_span()
+                    ),
                     columns: vec![
                         OpenJsonTableColumn {
                             name: Ident::new("kind"),
@@ -659,7 +663,10 @@ fn parse_mssql_openjson() {
                     json_expr: Expr::CompoundIdentifier(
                         vec![Ident::new("A"), Ident::new("param"),]
                     ),
-                    json_path: Some(Value::SingleQuotedString("$.config".into()).with_empty_span()),
+                    json_path: Some(
+                        Value::SingleQuotedString("$.config".into(), StringEscapeStyle::Standard)
+                            .with_empty_span()
+                    ),
                     columns: vec![],
                     alias: table_alias(true, "B")
                 },
@@ -989,7 +996,7 @@ fn parse_mssql_json_object() {
                 args[0],
                 FunctionArg::ExprNamed {
                     name: Expr::Value(ValueWithSpan {
-                        value: Value::SingleQuotedString(_),
+                        value: Value::SingleQuotedString(_, _),
                         span: _
                     }),
                     arg: FunctionArgExpr::Expr(Expr::Function(_)),
@@ -1008,7 +1015,7 @@ fn parse_mssql_json_object() {
                 args[2],
                 FunctionArg::ExprNamed {
                     name: Expr::Value(ValueWithSpan {
-                        value: Value::SingleQuotedString(_),
+                        value: Value::SingleQuotedString(_, _),
                         span: _
                     }),
                     arg: FunctionArgExpr::Expr(Expr::Subquery(_)),
@@ -1042,7 +1049,7 @@ fn parse_mssql_json_object() {
                 args[0],
                 FunctionArg::ExprNamed {
                     name: Expr::Value(ValueWithSpan {
-                        value: Value::SingleQuotedString(_),
+                        value: Value::SingleQuotedString(_, _),
                         span: _
                     }),
                     arg: FunctionArgExpr::Expr(Expr::CompoundIdentifier(_)),
@@ -1053,7 +1060,7 @@ fn parse_mssql_json_object() {
                 args[1],
                 FunctionArg::ExprNamed {
                     name: Expr::Value(ValueWithSpan {
-                        value: Value::SingleQuotedString(_),
+                        value: Value::SingleQuotedString(_, _),
                         span: _
                     }),
                     arg: FunctionArgExpr::Expr(Expr::CompoundIdentifier(_)),
@@ -1064,7 +1071,7 @@ fn parse_mssql_json_object() {
                 args[2],
                 FunctionArg::ExprNamed {
                     name: Expr::Value(ValueWithSpan {
-                        value: Value::SingleQuotedString(_),
+                        value: Value::SingleQuotedString(_, _),
                         span: _
                     }),
                     arg: FunctionArgExpr::Expr(Expr::CompoundIdentifier(_)),
@@ -1087,7 +1094,8 @@ fn parse_mssql_json_array() {
             assert_eq!(
                 &[
                     FunctionArg::Unnamed(FunctionArgExpr::Expr(Expr::Value(
-                        (Value::SingleQuotedString("a".into())).with_empty_span()
+                        (Value::SingleQuotedString("a".into(), StringEscapeStyle::Standard))
+                            .with_empty_span()
                     ))),
                     FunctionArg::Unnamed(FunctionArgExpr::Expr(Expr::Value(
                         (number("1")).with_empty_span()
@@ -1119,7 +1127,8 @@ fn parse_mssql_json_array() {
             assert_eq!(
                 &[
                     FunctionArg::Unnamed(FunctionArgExpr::Expr(Expr::Value(
-                        (Value::SingleQuotedString("a".into())).with_empty_span()
+                        (Value::SingleQuotedString("a".into(), StringEscapeStyle::Standard))
+                            .with_empty_span()
                     ))),
                     FunctionArg::Unnamed(FunctionArgExpr::Expr(Expr::Value(
                         (number("1")).with_empty_span()
@@ -1184,7 +1193,8 @@ fn parse_mssql_json_array() {
         }) => {
             assert_eq!(
                 &FunctionArg::Unnamed(FunctionArgExpr::Expr(Expr::Value(
-                    (Value::SingleQuotedString("a".into())).with_empty_span()
+                    (Value::SingleQuotedString("a".into(), StringEscapeStyle::Standard))
+                        .with_empty_span()
                 ))),
                 &args[0]
             );
@@ -1211,7 +1221,8 @@ fn parse_mssql_json_array() {
         }) => {
             assert_eq!(
                 &FunctionArg::Unnamed(FunctionArgExpr::Expr(Expr::Value(
-                    (Value::SingleQuotedString("a".into())).with_empty_span()
+                    (Value::SingleQuotedString("a".into(), StringEscapeStyle::Standard))
+                        .with_empty_span()
                 ))),
                 &args[0]
             );
@@ -1458,7 +1469,8 @@ fn parse_mssql_declare() {
                     }],
                     data_type: Some(Text),
                     assignment: Some(MsSqlAssignment(Box::new(Expr::Value(
-                        (SingleQuotedString("foobar".to_string())).with_empty_span()
+                        (SingleQuotedString("foobar".to_string(), StringEscapeStyle::Standard))
+                            .with_empty_span()
                     )))),
                     declare_type: None,
                     binary: None,
@@ -1602,8 +1614,11 @@ fn test_mssql_while_statement() {
                 conditional_statements: ConditionalStatements::Sequence {
                     statements: vec![Statement::Print(PrintStatement {
                         message: Box::new(Expr::Value(
-                            (Value::SingleQuotedString("Hello World".to_string()))
-                                .with_empty_span()
+                            (Value::SingleQuotedString(
+                                "Hello World".to_string(),
+                                StringEscapeStyle::Standard
+                            ))
+                            .with_empty_span()
                         )),
                     })],
                 }
@@ -1637,7 +1652,11 @@ fn test_parse_raiserror() {
         s,
         Statement::RaisError {
             message: Box::new(Expr::Value(
-                (Value::SingleQuotedString("This is a test".to_string())).with_empty_span()
+                (Value::SingleQuotedString(
+                    "This is a test".to_string(),
+                    StringEscapeStyle::Standard
+                ))
+                .with_empty_span()
             )),
             severity: Box::new(Expr::Value(
                 (Value::Number("16".parse().unwrap(), false)).with_empty_span()
@@ -1678,7 +1697,11 @@ fn test_parse_throw() {
                 (Value::Number("51000".parse().unwrap(), false)).with_empty_span()
             ))),
             message: Some(Box::new(Expr::Value(
-                (Value::SingleQuotedString("Record does not exist.".to_string())).with_empty_span()
+                (Value::SingleQuotedString(
+                    "Record does not exist.".to_string(),
+                    StringEscapeStyle::Standard
+                ))
+                .with_empty_span()
             ))),
             state: Some(Box::new(Expr::Value(
                 (Value::Number("1".parse().unwrap(), false)).with_empty_span()
@@ -1713,7 +1736,8 @@ fn test_parse_waitfor() {
         Statement::WaitFor(WaitForStatement {
             wait_type: WaitForType::Delay,
             expr: Expr::Value(
-                (Value::SingleQuotedString("00:00:05".to_string())).with_empty_span()
+                (Value::SingleQuotedString("00:00:05".to_string(), StringEscapeStyle::Standard))
+                    .with_empty_span()
             ),
         })
     );
@@ -1726,7 +1750,8 @@ fn test_parse_waitfor() {
         Statement::WaitFor(WaitForStatement {
             wait_type: WaitForType::Time,
             expr: Expr::Value(
-                (Value::SingleQuotedString("14:30:00".to_string())).with_empty_span()
+                (Value::SingleQuotedString("14:30:00".to_string(), StringEscapeStyle::Standard))
+                    .with_empty_span()
             ),
         })
     );
@@ -2497,8 +2522,11 @@ fn parse_create_trigger() {
             statements: Some(ConditionalStatements::Sequence {
                 statements: vec![Statement::RaisError {
                     message: Box::new(Expr::Value(
-                        (Value::SingleQuotedString("Notify Customer Relations".to_string()))
-                            .with_empty_span()
+                        (Value::SingleQuotedString(
+                            "Notify Customer Relations".to_string(),
+                            StringEscapeStyle::Standard
+                        ))
+                        .with_empty_span()
                     )),
                     severity: Box::new(Expr::Value(
                         (Value::Number("16".parse().unwrap(), false)).with_empty_span()
@@ -2587,7 +2615,11 @@ fn parse_print() {
         print_stmt,
         Statement::Print(PrintStatement {
             message: Box::new(Expr::Value(
-                (Value::SingleQuotedString("Hello, world!".to_string())).with_empty_span()
+                (Value::SingleQuotedString(
+                    "Hello, world!".to_string(),
+                    StringEscapeStyle::Standard
+                ))
+                .with_empty_span()
             )),
         })
     );
