@@ -30,8 +30,8 @@ use sqlparser::ast::SelectItem::UnnamedExpr;
 use sqlparser::ast::Value::Placeholder;
 use sqlparser::ast::*;
 use sqlparser::dialect::{GenericDialect, SQLiteDialect};
-use sqlparser::parser::{ParserError, ParserOptions};
-use sqlparser::tokenizer::Token;
+use sqlparser::parser::{Parser, ParserError, ParserOptions};
+use sqlparser::tokenizer::{Token, Tokenizer};
 
 #[test]
 fn pragma_no_value() {
@@ -970,4 +970,31 @@ fn sqlite_and_generic() -> TestedDialects {
         Box::new(SQLiteDialect {}),
         Box::new(GenericDialect {}),
     ])
+}
+
+#[test]
+fn parse_field_access_underscore_col_after_whitespace() {
+    sqlite().verified_stmt("SELECT t._a FROM t");
+    sqlite().one_statement_parses_to("SELECT t ._a FROM t", "SELECT t._a FROM t");
+
+    all_dialects_where(|d| d.is_identifier_start('_'))
+        .one_statement_parses_to("SELECT t ._a FROM t", "SELECT t._a FROM t");
+
+    // ._ without a preceding table name is rejected by the parser in every dialect
+    for dialect in &all_dialects().dialects {
+        assert!(
+            Parser::parse_sql(&**dialect, "SELECT ._abc").is_err(),
+            "{dialect:?} should reject SELECT ._abc",
+        );
+        assert!(
+            Parser::parse_sql(&**dialect, "SELECT ._123").is_err(),
+            "{dialect:?} should reject SELECT ._123",
+        );
+    }
+
+    // A number before ._ is rejected at the tokenizer level
+    assert!(Tokenizer::new(&SQLiteDialect {}, "SELECT 1 ._a")
+        .tokenize()
+        .is_err());
+    assert!(Tokenizer::new(&SQLiteDialect {}, "._a").tokenize().is_err());
 }
