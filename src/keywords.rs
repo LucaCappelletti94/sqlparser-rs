@@ -516,6 +516,7 @@ define_keywords!(
     INCREMENT,
     INCREMENTAL,
     INDEX,
+    INDEXED,
     INDICATOR,
     INHERIT,
     INHERITS,

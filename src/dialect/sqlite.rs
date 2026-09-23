@@ -142,4 +142,17 @@ impl Dialect for SQLiteDialect {
     fn supports_national_string_literal(&self) -> bool {
         false
     }
+
+    fn supports_indexed_by(&self) -> bool {
+        true
+    }
+
+    fn is_table_alias(&self, kw: &Keyword, parser: &mut crate::parser::Parser) -> bool {
+        match kw {
+            Keyword::INDEXED => false,
+            // NOT INDEXED is a table hint so NOT must not be consumed as an alias
+            Keyword::NOT => !parser.peek_keyword(Keyword::INDEXED),
+            _ => !crate::keywords::RESERVED_FOR_TABLE_ALIAS.contains(kw),
+        }
+    }
 }
