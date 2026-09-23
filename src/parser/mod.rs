@@ -16314,6 +16314,24 @@ impl<'a> Parser<'a> {
                 }
             } else {
                 let natural = self.parse_keyword(Keyword::NATURAL);
+                if !natural && !global && self.dialect.supports_comma_join_constraint() {
+                    if let Some(join) = self.maybe_parse(|p| {
+                        p.expect_token(&Token::Comma)?;
+                        let relation = p.parse_table_factor()?;
+                        let constraint = p.parse_join_constraint(false)?;
+                        if matches!(constraint, JoinConstraint::None) {
+                            return Err(ParserError::ParserError("no join constraint".to_string()));
+                        }
+                        Ok(Join {
+                            relation,
+                            global: false,
+                            join_operator: JoinOperator::Join(constraint),
+                        })
+                    })? {
+                        joins.push(join);
+                        continue;
+                    }
+                }
                 let peek_keyword = if let Token::Word(w) = &self.peek_token_ref().token {
                     w.keyword
                 } else {

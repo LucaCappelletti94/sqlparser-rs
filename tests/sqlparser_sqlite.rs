@@ -957,6 +957,24 @@ fn parse_pattern_operators_bind_at_like_precedence() {
     }
 }
 
+#[test]
+fn parse_comma_join_constraint() {
+    sqlite().one_statement_parses_to(
+        "SELECT * FROM t, u ON t.a = u.a",
+        "SELECT * FROM t JOIN u ON t.a = u.a",
+    );
+    sqlite().one_statement_parses_to(
+        "SELECT * FROM t, u USING (a)",
+        "SELECT * FROM t JOIN u USING(a)",
+    );
+    // dialects without the flag reject ON/USING after a comma
+    assert!(sqlparser::parser::Parser::parse_sql(
+        &GenericDialect {},
+        "SELECT * FROM t, u ON t.a = u.a"
+    )
+    .is_err());
+}
+
 fn sqlite() -> TestedDialects {
     TestedDialects::new(vec![Box::new(SQLiteDialect {})])
 }
