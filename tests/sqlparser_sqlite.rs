@@ -957,6 +957,31 @@ fn parse_pattern_operators_bind_at_like_precedence() {
     }
 }
 
+#[test]
+fn parse_between_low_bound_precedence() {
+    // In SQLite the low bound absorbs comparison operators
+    sqlite().verified_stmt("SELECT a BETWEEN b > 1 AND c FROM t");
+
+    // The low bound also absorbs postfix predicates like NOTNULL (same precedence tier in SQLite)
+    sqlite().one_statement_parses_to(
+        "SELECT a BETWEEN b NOTNULL AND c FROM t",
+        "SELECT a BETWEEN b IS NOT NULL AND c FROM t",
+    );
+    sqlite().verified_stmt("SELECT a BETWEEN b IS NOT NULL AND c FROM t");
+
+    // A nested BETWEEN is absorbed as the low bound (same precedence tier, left-associative)
+    sqlite().verified_stmt("SELECT a BETWEEN b BETWEEN 1 AND 2 AND c FROM t");
+
+    // Trailing operators still apply to the whole BETWEEN expression, not just the high bound
+    sqlite().verified_stmt("SELECT 5 BETWEEN 1 AND NULL IS NULL FROM t");
+    sqlite().verified_stmt("SELECT 5 BETWEEN 1 AND 10 = 1 FROM t");
+
+    // Other dialects use standard precedence and reject the low-bound forms above
+    assert!(TestedDialects::new(vec![Box::new(GenericDialect {})])
+        .parse_sql_statements("SELECT a BETWEEN b > 1 AND c FROM t")
+        .is_err());
+}
+
 fn sqlite() -> TestedDialects {
     TestedDialects::new(vec![Box::new(SQLiteDialect {})])
 }
