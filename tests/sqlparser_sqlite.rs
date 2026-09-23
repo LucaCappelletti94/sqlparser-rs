@@ -957,6 +957,24 @@ fn parse_pattern_operators_bind_at_like_precedence() {
     }
 }
 
+#[test]
+fn parse_unterminated_block_comment() {
+    // SQLite accepts a block comment left open at end of input.
+    // https://www.sqlite.org/tokenize.html
+    sqlite().one_statement_parses_to("SELECT 1 /* x", "SELECT 1");
+    sqlite().one_statement_parses_to("SELECT 1 /* x;", "SELECT 1");
+
+    // A bare unterminated comment produces no statement.
+    assert!(sqlite().parse_sql_statements("/* ;").unwrap().is_empty());
+
+    // Other dialects reject an unterminated block comment.
+    assert!(
+        all_dialects_where(|d| !d.supports_unterminated_block_comments())
+            .parse_sql_statements("SELECT 1 /* x")
+            .is_err()
+    );
+}
+
 fn sqlite() -> TestedDialects {
     TestedDialects::new(vec![Box::new(SQLiteDialect {})])
 }
