@@ -19,7 +19,9 @@
 use alloc::string::String;
 
 use core::{
-    fmt,
+    cmp::Ordering,
+    fmt::{self, Write},
+    hash::{Hash, Hasher},
     ops::{Deref, DerefMut},
 };
 
@@ -37,9 +39,9 @@ use sqlparser_derive::{Visit, VisitMut};
 ///
 /// # Example: create a `ValueWithSpan` from a `Value`
 /// ```
-/// # use sqlparser::ast::{Value, ValueWithSpan};
+/// # use sqlparser::ast::{StringEscapeStyle, Value, ValueWithSpan};
 /// # use sqlparser::tokenizer::{Location, Span};
-/// let value = Value::SingleQuotedString(String::from("endpoint"));
+/// let value = Value::SingleQuotedString(String::from("endpoint"), StringEscapeStyle::Standard);
 /// // from line 1, column 1 to line 1, column 7
 /// let span = Span::new(Location::new(1, 1), Location::new(1, 7));
 /// let value_with_span = value.with_span(span);
@@ -49,18 +51,18 @@ use sqlparser_derive::{Visit, VisitMut};
 ///
 /// You can call [`Value::with_empty_span`] to create a `ValueWithSpan` with an empty span
 /// ```
-/// # use sqlparser::ast::{Value, ValueWithSpan};
+/// # use sqlparser::ast::{StringEscapeStyle, Value, ValueWithSpan};
 /// # use sqlparser::tokenizer::{Location, Span};
-/// let value = Value::SingleQuotedString(String::from("endpoint"));
+/// let value = Value::SingleQuotedString(String::from("endpoint"), StringEscapeStyle::Standard);
 /// let value_with_span = value.with_empty_span();
 /// assert_eq!(value_with_span.span, Span::empty());
 /// ```
 ///
 /// You can also use the [`From`] trait to convert  `ValueWithSpan` to/from `Value`s
 /// ```
-/// # use sqlparser::ast::{Value, ValueWithSpan};
+/// # use sqlparser::ast::{StringEscapeStyle, Value, ValueWithSpan};
 /// # use sqlparser::tokenizer::{Location, Span};
-/// let value = Value::SingleQuotedString(String::from("endpoint"));
+/// let value = Value::SingleQuotedString(String::from("endpoint"), StringEscapeStyle::Standard);
 /// // converting `Value` to `ValueWithSpan` results in an empty span
 /// let value_with_span: ValueWithSpan = value.into();
 /// assert_eq!(value_with_span.span, Span::empty());
@@ -147,15 +149,15 @@ pub enum Value {
     /// Numeric literal (uses `BigDecimal` when the `bigdecimal` feature is enabled).
     Number(BigDecimal, bool),
     /// 'string value'
-    SingleQuotedString(String),
+    SingleQuotedString(String, StringEscapeStyle),
     /// Dollar-quoted string literal, e.g. `$$...$$` or `$tag$...$tag$` (Postgres syntax).
     DollarQuotedString(DollarQuotedString),
     /// Triple single quoted strings: Example '''abc'''
     /// [BigQuery](https://cloud.google.com/bigquery/docs/reference/standard-sql/lexical#quoted_literals)
-    TripleSingleQuotedString(String),
+    TripleSingleQuotedString(String, StringEscapeStyle),
     /// Triple double quoted strings: Example """abc"""
     /// [BigQuery](https://cloud.google.com/bigquery/docs/reference/standard-sql/lexical#quoted_literals)
-    TripleDoubleQuotedString(String),
+    TripleDoubleQuotedString(String, StringEscapeStyle),
     /// e'string value' (postgres extension)
     /// See [Postgres docs](https://www.postgresql.org/docs/8.3/sql-syntax-lexical.html#SQL-SYNTAX-STRINGS)
     /// for more details.
@@ -187,7 +189,7 @@ pub enum Value {
     /// [BigQuery](https://cloud.google.com/bigquery/docs/reference/standard-sql/lexical#quoted_literals)
     TripleDoubleQuotedRawStringLiteral(String),
     /// N'string value'
-    NationalStringLiteral(String),
+    NationalStringLiteral(String, StringEscapeStyle),
     /// Quote delimited literal. Examples `Q'{ab'c}'`, `Q'|ab'c|'`, `Q'|ab|c|'`
     /// [Oracle](https://docs.oracle.com/en/database/oracle/oracle-database/21/sqlrf/Literals.html#GUID-1824CBAA-6E16-4921-B2A6-112FB02248DA)
     QuoteDelimitedStringLiteral(QuoteDelimitedString),
@@ -198,7 +200,7 @@ pub enum Value {
     HexStringLiteral(String),
 
     /// Double quoted string literal, e.g. `"abc"`.
-    DoubleQuotedString(String),
+    DoubleQuotedString(String, StringEscapeStyle),
     /// Boolean value true or false
     Boolean(bool),
     /// `NULL` value
@@ -218,10 +220,10 @@ impl Value {
     /// If the underlying literal is a string, regardless of quote style, returns the associated string value
     pub fn into_string(self) -> Option<String> {
         match self {
-            Value::SingleQuotedString(s)
-            | Value::DoubleQuotedString(s)
-            | Value::TripleSingleQuotedString(s)
-            | Value::TripleDoubleQuotedString(s)
+            Value::SingleQuotedString(s, _)
+            | Value::DoubleQuotedString(s, _)
+            | Value::TripleSingleQuotedString(s, _)
+            | Value::TripleDoubleQuotedString(s, _)
             | Value::SingleQuotedByteStringLiteral(s)
             | Value::DoubleQuotedByteStringLiteral(s)
             | Value::TripleSingleQuotedByteStringLiteral(s)
@@ -232,7 +234,7 @@ impl Value {
             | Value::TripleDoubleQuotedRawStringLiteral(s)
             | Value::EscapedStringLiteral(s)
             | Value::UnicodeStringLiteral(s)
-            | Value::NationalStringLiteral(s)
+            | Value::NationalStringLiteral(s, _)
             | Value::HexStringLiteral(s) => Some(s),
             Value::DollarQuotedString(s) => Some(s.value),
             Value::QuoteDelimitedStringLiteral(s) => Some(s.value),
@@ -262,18 +264,24 @@ impl fmt::Display for Value {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Value::Number(v, l) => write!(f, "{}{long}", v, long = if *l { "L" } else { "" }),
-            Value::DoubleQuotedString(v) => write!(f, "\"{}\"", escape_double_quote_string(v)),
-            Value::SingleQuotedString(v) => write!(f, "'{}'", escape_single_quote_string(v)),
-            Value::TripleSingleQuotedString(v) => {
+            Value::DoubleQuotedString(v, style) => write!(f, "\"{}\"", style.escape(v, '"')),
+            Value::SingleQuotedString(v, style) => write!(f, "'{}'", style.escape(v, '\'')),
+            Value::TripleSingleQuotedString(v, StringEscapeStyle::Standard) => {
                 write!(f, "'''{v}'''")
             }
-            Value::TripleDoubleQuotedString(v) => {
+            Value::TripleSingleQuotedString(v, style) => {
+                write!(f, "'''{}'''", style.escape_triple(v, '\''))
+            }
+            Value::TripleDoubleQuotedString(v, StringEscapeStyle::Standard) => {
                 write!(f, r#""""{v}""""#)
+            }
+            Value::TripleDoubleQuotedString(v, style) => {
+                write!(f, r#""""{}""""#, style.escape_triple(v, '"'))
             }
             Value::DollarQuotedString(v) => write!(f, "{v}"),
             Value::EscapedStringLiteral(v) => write!(f, "E'{}'", escape_escaped_string(v)),
             Value::UnicodeStringLiteral(v) => write!(f, "U&'{}'", escape_unicode_string(v)),
-            Value::NationalStringLiteral(v) => write!(f, "N'{}'", escape_single_quote_string(v)),
+            Value::NationalStringLiteral(v, style) => write!(f, "N'{}'", style.escape(v, '\'')),
             Value::QuoteDelimitedStringLiteral(v) => v.fmt(f),
             Value::NationalQuoteDelimitedStringLiteral(v) => write!(f, "N{v}"),
             Value::HexStringLiteral(v) => write!(f, "X'{}'", escape_single_quote_string(v)),
@@ -538,13 +546,99 @@ impl fmt::Display for NormalizationForm {
     }
 }
 
+/// How a string literal escapes its delimiter when displayed.
+///
+/// Ignored by comparisons and hashing, so literals with the same content are equal.
+#[derive(Debug, Default, Clone, Copy)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
+pub enum StringEscapeStyle {
+    /// The delimiter is doubled, e.g. `'it''s'`.
+    #[default]
+    Standard,
+    /// A backslash escapes the delimiter, itself, newlines and tabs, e.g. `'it\'s'`.
+    ///
+    /// See [`Dialect::supports_string_literal_backslash_escape`](crate::dialect::Dialect::supports_string_literal_backslash_escape).
+    Backslash,
+}
+
+impl StringEscapeStyle {
+    fn escape(self, string: &str, quote: char) -> EscapeQuotedString<'_> {
+        EscapeQuotedString {
+            string,
+            quote,
+            style: self,
+            triple: false,
+        }
+    }
+
+    fn escape_triple(self, string: &str, quote: char) -> EscapeQuotedString<'_> {
+        EscapeQuotedString {
+            triple: true,
+            ..self.escape(string, quote)
+        }
+    }
+}
+
+impl PartialEq for StringEscapeStyle {
+    fn eq(&self, _: &Self) -> bool {
+        true
+    }
+}
+
+impl Eq for StringEscapeStyle {}
+
+impl PartialOrd for StringEscapeStyle {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for StringEscapeStyle {
+    fn cmp(&self, _: &Self) -> Ordering {
+        Ordering::Equal
+    }
+}
+
+impl Hash for StringEscapeStyle {
+    fn hash<H: Hasher>(&self, _state: &mut H) {}
+}
+
 pub struct EscapeQuotedString<'a> {
     string: &'a str,
     quote: char,
+    style: StringEscapeStyle,
+    triple: bool,
+}
+
+impl EscapeQuotedString<'_> {
+    fn fmt_backslash(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let mut chars = self.string.chars().peekable();
+        while let Some(c) = chars.next() {
+            match c {
+                '\\' => f.write_str(r"\\")?,
+                '\n' => f.write_str(r"\n")?,
+                '\r' => f.write_str(r"\r")?,
+                '\t' => f.write_str(r"\t")?,
+                // Inside triple quotes only a quote that could join the closing run needs escaping
+                c if c == self.quote
+                    && (!self.triple || chars.peek().is_none_or(|&next| next == c)) =>
+                {
+                    f.write_char('\\')?;
+                    f.write_char(c)?;
+                }
+                c => f.write_char(c)?,
+            }
+        }
+        Ok(())
+    }
 }
 
 impl fmt::Display for EscapeQuotedString<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        if let StringEscapeStyle::Backslash = self.style {
+            return self.fmt_backslash(f);
+        }
         // EscapeQuotedString doesn't know which mode of escape was
         // chosen by the user. So this code must to correctly display
         // strings without knowing if the strings are already escaped
@@ -605,7 +699,7 @@ impl fmt::Display for EscapeQuotedString<'_> {
 /// Return a helper which formats `string` for inclusion inside a quoted
 /// literal that uses `quote` as the delimiter.
 pub fn escape_quoted_string(string: &str, quote: char) -> EscapeQuotedString<'_> {
-    EscapeQuotedString { string, quote }
+    StringEscapeStyle::Standard.escape(string, quote)
 }
 
 /// Convenience wrapper for escaping strings for single-quoted literals (`'`).

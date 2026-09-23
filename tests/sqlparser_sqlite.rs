@@ -461,7 +461,7 @@ fn parse_attach_database() {
             schema_name,
             database_file_name:
                 Expr::Value(ValueWithSpan {
-                    value: Value::SingleQuotedString(literal_name),
+                    value: Value::SingleQuotedString(literal_name, StringEscapeStyle::Standard),
                     span: _,
                 }),
             database: true,
@@ -586,7 +586,8 @@ fn test_match_operator() {
             op: BinaryOperator::Match,
             left: Box::new(Expr::Identifier(Ident::new("col"))),
             right: Box::new(Expr::Value(
-                (Value::SingleQuotedString("pattern".to_string())).with_empty_span()
+                (Value::SingleQuotedString("pattern".to_string(), StringEscapeStyle::Standard))
+                    .with_empty_span()
             ))
         }
     );
@@ -601,7 +602,8 @@ fn test_regexp_operator() {
             op: BinaryOperator::Regexp,
             left: Box::new(Expr::Identifier(Ident::new("col"))),
             right: Box::new(Expr::Value(
-                (Value::SingleQuotedString("pattern".to_string())).with_empty_span()
+                (Value::SingleQuotedString("pattern".to_string(), StringEscapeStyle::Standard))
+                    .with_empty_span()
             ))
         }
     );
@@ -620,7 +622,8 @@ fn test_glob_operator() {
             op: BinaryOperator::Glob,
             left: Box::new(Expr::Identifier(Ident::new("col"))),
             right: Box::new(Expr::Value(
-                (Value::SingleQuotedString("pattern".to_string())).with_empty_span()
+                (Value::SingleQuotedString("pattern".to_string(), StringEscapeStyle::Standard))
+                    .with_empty_span()
             ))
         }
     );

@@ -52,11 +52,17 @@ fn parse_literal_string() {
     let select = mysql().verified_only_select(sql);
     assert_eq!(2, select.projection.len());
     assert_eq!(
-        &Expr::Value((Value::SingleQuotedString("single".to_string())).with_empty_span()),
+        &Expr::Value(
+            (Value::SingleQuotedString("single".to_string(), StringEscapeStyle::Standard))
+                .with_empty_span()
+        ),
         expr_from_projection(&select.projection[0])
     );
     assert_eq!(
-        &Expr::Value((Value::DoubleQuotedString("double".to_string())).with_empty_span()),
+        &Expr::Value(
+            (Value::DoubleQuotedString("double".to_string(), StringEscapeStyle::Standard))
+                .with_empty_span()
+        ),
         expr_from_projection(&select.projection[1])
     );
 }
@@ -886,7 +892,8 @@ fn test_functional_key_part() {
                 left: Box::new(Expr::Identifier(Ident::new("col"))),
                 op: BinaryOperator::LongArrow,
                 right: Box::new(Expr::Value(
-                    Value::SingleQuotedString("$.id".to_string()).with_empty_span()
+                    Value::SingleQuotedString("$.id".to_string(), StringEscapeStyle::Standard)
+                        .with_empty_span()
                 )),
             }),
             data_type: DataType::Unsigned,
@@ -903,7 +910,7 @@ fn test_functional_key_part() {
                 left: Box::new(Expr::Identifier(Ident::new("col"))),
                 op: BinaryOperator::LongArrow,
                 right: Box::new(Expr::Value(
-                    Value::SingleQuotedString("$.fields".to_string()).with_empty_span()
+                    Value::SingleQuotedString("$.fields".to_string(), StringEscapeStyle::Standard).with_empty_span()
                 )),
             }),
             data_type: DataType::Array(ArrayElemTypeDef::Qualified(
@@ -1145,11 +1152,17 @@ fn parse_create_table_with_all_table_options() {
             }));
             assert!(plain_options.contains(&SqlOption::KeyValue {
                 key: Ident::new("COMPRESSION"),
-                value: Expr::value(Value::SingleQuotedString("ZLIB".to_owned()))
+                value: Expr::value(Value::SingleQuotedString(
+                    "ZLIB".to_owned(),
+                    StringEscapeStyle::Standard
+                ))
             }));
             assert!(plain_options.contains(&SqlOption::KeyValue {
                 key: Ident::new("ENCRYPTION"),
-                value: Expr::value(Value::SingleQuotedString("Y".to_owned()))
+                value: Expr::value(Value::SingleQuotedString(
+                    "Y".to_owned(),
+                    StringEscapeStyle::Standard
+                ))
             }));
             assert!(plain_options.contains(&SqlOption::KeyValue {
                 key: Ident::new("MAX_ROWS"),
@@ -1173,19 +1186,31 @@ fn parse_create_table_with_all_table_options() {
             }));
             assert!(plain_options.contains(&SqlOption::KeyValue {
                 key: Ident::new("CONNECTION"),
-                value: Expr::value(Value::SingleQuotedString("mysql://localhost".to_owned()))
+                value: Expr::value(Value::SingleQuotedString(
+                    "mysql://localhost".to_owned(),
+                    StringEscapeStyle::Standard
+                ))
             }));
             assert!(plain_options.contains(&SqlOption::KeyValue {
                 key: Ident::new("ENGINE_ATTRIBUTE"),
-                value: Expr::value(Value::SingleQuotedString("primary".to_owned()))
+                value: Expr::value(Value::SingleQuotedString(
+                    "primary".to_owned(),
+                    StringEscapeStyle::Standard
+                ))
             }));
             assert!(plain_options.contains(&SqlOption::KeyValue {
                 key: Ident::new("PASSWORD"),
-                value: Expr::value(Value::SingleQuotedString("secure_password".to_owned()))
+                value: Expr::value(Value::SingleQuotedString(
+                    "secure_password".to_owned(),
+                    StringEscapeStyle::Standard
+                ))
             }));
             assert!(plain_options.contains(&SqlOption::KeyValue {
                 key: Ident::new("SECONDARY_ENGINE_ATTRIBUTE"),
-                value: Expr::value(Value::SingleQuotedString("secondary_attr".to_owned()))
+                value: Expr::value(Value::SingleQuotedString(
+                    "secondary_attr".to_owned(),
+                    StringEscapeStyle::Standard
+                ))
             }));
             assert!(plain_options.contains(&SqlOption::Ident(Ident::new(
                 "START TRANSACTION".to_owned()
@@ -1211,11 +1236,17 @@ fn parse_create_table_with_all_table_options() {
 
             assert!(plain_options.contains(&SqlOption::KeyValue {
                 key: Ident::new("DATA DIRECTORY"),
-                value: Expr::value(Value::SingleQuotedString("/var/lib/mysql/data".to_owned()))
+                value: Expr::value(Value::SingleQuotedString(
+                    "/var/lib/mysql/data".to_owned(),
+                    StringEscapeStyle::Standard
+                ))
             }));
             assert!(plain_options.contains(&SqlOption::KeyValue {
                 key: Ident::new("INDEX DIRECTORY"),
-                value: Expr::value(Value::SingleQuotedString("/var/lib/mysql/index".to_owned()))
+                value: Expr::value(Value::SingleQuotedString(
+                    "/var/lib/mysql/index".to_owned(),
+                    StringEscapeStyle::Standard
+                ))
             }));
         }
         _ => unreachable!(),
@@ -1948,22 +1979,31 @@ fn parse_simple_insert() {
                         rows: vec![
                             Parens::with_empty_span(vec![
                                 Expr::Value(
-                                    (Value::SingleQuotedString("Test Some Inserts".to_string()))
-                                        .with_empty_span()
+                                    (Value::SingleQuotedString(
+                                        "Test Some Inserts".to_string(),
+                                        StringEscapeStyle::Standard
+                                    ))
+                                    .with_empty_span()
                                 ),
                                 Expr::value(number("1"))
                             ]),
                             Parens::with_empty_span(vec![
                                 Expr::Value(
-                                    (Value::SingleQuotedString("Test Entry 2".to_string()))
-                                        .with_empty_span()
+                                    (Value::SingleQuotedString(
+                                        "Test Entry 2".to_string(),
+                                        StringEscapeStyle::Standard
+                                    ))
+                                    .with_empty_span()
                                 ),
                                 Expr::value(number("2"))
                             ]),
                             Parens::with_empty_span(vec![
                                 Expr::Value(
-                                    (Value::SingleQuotedString("Test Entry 3".to_string()))
-                                        .with_empty_span()
+                                    (Value::SingleQuotedString(
+                                        "Test Entry 3".to_string(),
+                                        StringEscapeStyle::Standard
+                                    ))
+                                    .with_empty_span()
                                 ),
                                 Expr::value(number("3"))
                             ])
@@ -2019,8 +2059,11 @@ fn parse_ignore_insert() {
                         explicit_row: false,
                         rows: vec![Parens::with_empty_span(vec![
                             Expr::Value(
-                                (Value::SingleQuotedString("Test Some Inserts".to_string()))
-                                    .with_empty_span()
+                                (Value::SingleQuotedString(
+                                    "Test Some Inserts".to_string(),
+                                    StringEscapeStyle::Standard
+                                ))
+                                .with_empty_span()
                             ),
                             Expr::value(number("1"))
                         ])]
@@ -2075,8 +2118,11 @@ fn parse_priority_insert() {
                         explicit_row: false,
                         rows: vec![Parens::with_empty_span(vec![
                             Expr::Value(
-                                (Value::SingleQuotedString("Test Some Inserts".to_string()))
-                                    .with_empty_span()
+                                (Value::SingleQuotedString(
+                                    "Test Some Inserts".to_string(),
+                                    StringEscapeStyle::Standard
+                                ))
+                                .with_empty_span()
                             ),
                             Expr::value(number("1"))
                         ])]
@@ -2128,8 +2174,11 @@ fn parse_priority_insert() {
                         explicit_row: false,
                         rows: vec![Parens::with_empty_span(vec![
                             Expr::Value(
-                                (Value::SingleQuotedString("Test Some Inserts".to_string()))
-                                    .with_empty_span()
+                                (Value::SingleQuotedString(
+                                    "Test Some Inserts".to_string(),
+                                    StringEscapeStyle::Standard
+                                ))
+                                .with_empty_span()
                             ),
                             Expr::value(number("1"))
                         ])]
@@ -2183,7 +2232,11 @@ fn parse_insert_as() {
                         value_keyword: false,
                         explicit_row: false,
                         rows: vec![Parens::with_empty_span(vec![Expr::Value(
-                            (Value::SingleQuotedString("2024-01-01".to_string())).with_empty_span()
+                            (Value::SingleQuotedString(
+                                "2024-01-01".to_string(),
+                                StringEscapeStyle::Standard
+                            ))
+                            .with_empty_span()
                         )])]
                     })),
                     order_by: None,
@@ -2248,8 +2301,11 @@ fn parse_insert_as() {
                         rows: vec![Parens::with_empty_span(vec![
                             Expr::value(number("1")),
                             Expr::Value(
-                                (Value::SingleQuotedString("2024-01-01".to_string()))
-                                    .with_empty_span()
+                                (Value::SingleQuotedString(
+                                    "2024-01-01".to_string(),
+                                    StringEscapeStyle::Standard
+                                ))
+                                .with_empty_span()
                             )
                         ])]
                     })),
@@ -2304,8 +2360,11 @@ fn parse_replace_insert() {
                         explicit_row: false,
                         rows: vec![Parens::with_empty_span(vec![
                             Expr::Value(
-                                (Value::SingleQuotedString("Test Some Inserts".to_string()))
-                                    .with_empty_span()
+                                (Value::SingleQuotedString(
+                                    "Test Some Inserts".to_string(),
+                                    StringEscapeStyle::Standard
+                                ))
+                                .with_empty_span()
                             ),
                             Expr::value(number("1"))
                         ])]
@@ -2406,12 +2465,16 @@ fn parse_insert_with_on_duplicate_update() {
                         explicit_row: false,
                         rows: vec![Parens::with_empty_span(vec![
                             Expr::Value(
-                                (Value::SingleQuotedString("accounting_manager".to_string()))
-                                    .with_empty_span()
+                                (Value::SingleQuotedString(
+                                    "accounting_manager".to_string(),
+                                    StringEscapeStyle::Standard
+                                ))
+                                .with_empty_span()
                             ),
                             Expr::Value(
                                 (Value::SingleQuotedString(
-                                    "Some description about the group".to_string()
+                                    "Some description about the group".to_string(),
+                                    StringEscapeStyle::Standard
                                 ))
                                 .with_empty_span()
                             ),
@@ -2795,7 +2858,11 @@ fn parse_update_with_joins() {
                     ])),
                     op: BinaryOperator::Eq,
                     right: Box::new(Expr::Value(
-                        (Value::SingleQuotedString("Peter".to_string())).with_empty_span()
+                        (Value::SingleQuotedString(
+                            "Peter".to_string(),
+                            StringEscapeStyle::Standard
+                        ))
+                        .with_empty_span()
                     ))
                 }),
                 selection
@@ -3439,10 +3506,22 @@ fn parse_rlike_and_regexp() {
 #[test]
 fn parse_like_with_escape() {
     // verify backslash is not stripped for escaped wildcards
-    mysql().verified_only_select(r#"SELECT 'a\%c' LIKE 'a\%c'"#);
-    mysql().verified_only_select(r#"SELECT 'a\_c' LIKE 'a\_c'"#);
-    mysql().verified_only_select(r#"SELECT '%\_\%' LIKE '%\_\%'"#);
-    mysql().verified_only_select(r#"SELECT '\_\%' LIKE CONCAT('\_', '\%')"#);
+    mysql().one_statement_parses_to(
+        r#"SELECT 'a\%c' LIKE 'a\%c'"#,
+        r#"SELECT 'a\\%c' LIKE 'a\\%c'"#,
+    );
+    mysql().one_statement_parses_to(
+        r#"SELECT 'a\_c' LIKE 'a\_c'"#,
+        r#"SELECT 'a\\_c' LIKE 'a\\_c'"#,
+    );
+    mysql().one_statement_parses_to(
+        r#"SELECT '%\_\%' LIKE '%\_\%'"#,
+        r#"SELECT '%\\_\\%' LIKE '%\\_\\%'"#,
+    );
+    mysql().one_statement_parses_to(
+        r#"SELECT '\_\%' LIKE CONCAT('\_', '\%')"#,
+        r#"SELECT '\\_\\%' LIKE CONCAT('\\_', '\\%')"#,
+    );
     mysql().verified_only_select(r#"SELECT 'a%c' LIKE 'a$%c' ESCAPE '$'"#);
     mysql().verified_only_select(r#"SELECT 'a_c' LIKE 'a#_c' ESCAPE '#'"#);
 }
@@ -3911,7 +3990,10 @@ fn parse_json_table() {
         r#"SELECT * FROM JSON_TABLE(?, '$[*]' COLUMNS(a VARCHAR(20) PATH '$')) AS t"#,
     );
     // quote escaping
-    mysql().verified_only_select(r#"SELECT * FROM JSON_TABLE('{"''": [1,2,3]}', '$."''"[*]' COLUMNS(a VARCHAR(20) PATH '$')) AS t"#);
+    mysql().one_statement_parses_to(
+        r#"SELECT * FROM JSON_TABLE('{"''": [1,2,3]}', '$."''"[*]' COLUMNS(a VARCHAR(20) PATH '$')) AS t"#,
+        r#"SELECT * FROM JSON_TABLE('{"\'": [1,2,3]}', '$."\'"[*]' COLUMNS(a VARCHAR(20) PATH '$')) AS t"#,
+    );
     // double quotes
     mysql().verified_only_select(
         r#"SELECT * FROM JSON_TABLE("[]", "$[*]" COLUMNS(a VARCHAR(20) PATH "$")) AS t"#,
@@ -3940,15 +4022,15 @@ fn parse_json_table() {
             .from[0]
             .relation,
         TableFactor::JsonTable {
-            json_expr: Expr::Value((Value::SingleQuotedString("[1,2]".to_string())).with_empty_span()),
-            json_path: Value::SingleQuotedString("$[*]".to_string()).with_empty_span(),
+            json_expr: Expr::Value((Value::SingleQuotedString("[1,2]".to_string(), StringEscapeStyle::Standard)).with_empty_span()),
+            json_path: Value::SingleQuotedString("$[*]".to_string(), StringEscapeStyle::Standard).with_empty_span(),
             columns: vec![
                 JsonTableColumn::Named(JsonTableNamedColumn {
                     name: Ident::new("x"),
                     r#type: DataType::Int(None),
-                    path: Value::SingleQuotedString("$".to_string()).with_empty_span(),
+                    path: Value::SingleQuotedString("$".to_string(), StringEscapeStyle::Standard).with_empty_span(),
                     exists: false,
-                    on_empty: Some(JsonTableColumnErrorHandling::Default(Value::SingleQuotedString("0".to_string()).with_empty_span())),
+                    on_empty: Some(JsonTableColumnErrorHandling::Default(Value::SingleQuotedString("0".to_string(), StringEscapeStyle::Standard).with_empty_span())),
                     on_error: Some(JsonTableColumnErrorHandling::Null),
                 }),
             ],
@@ -4402,7 +4484,8 @@ fn parse_match_against_with_alias() {
                     );
                     assert_eq!(
                         match_value,
-                        Value::SingleQuotedString("AAA".to_owned()).with_empty_span()
+                        Value::SingleQuotedString("AAA".to_owned(), StringEscapeStyle::Standard)
+                            .with_empty_span()
                     );
                     assert_eq!(opt_search_modifier, Some(SearchModifier::InBooleanMode));
                 }
@@ -4769,11 +4852,15 @@ fn parse_json_member_of() {
                 select.projection,
                 vec![SelectItem::UnnamedExpr(Expr::MemberOf(MemberOf {
                     value: Box::new(Expr::Value(
-                        Value::SingleQuotedString("ab".to_string()).into()
+                        Value::SingleQuotedString("ab".to_string(), StringEscapeStyle::Standard)
+                            .into()
                     )),
                     array: Box::new(Expr::Value(
-                        Value::SingleQuotedString(r#"[23, "abc", 17, "ab", 10]"#.to_string())
-                            .into()
+                        Value::SingleQuotedString(
+                            r#"[23, "abc", 17, "ab", 10]"#.to_string(),
+                            StringEscapeStyle::Standard
+                        )
+                        .into()
                     )),
                 }))]
             );
@@ -5031,7 +5118,8 @@ fn parse_is_distinct_from_json_arrow_precedence() {
                 left: Box::new(Expr::Identifier(Ident::new("b"))),
                 op: BinaryOperator::Arrow,
                 right: Box::new(Expr::Value(
-                    Value::SingleQuotedString("k".into()).with_empty_span()
+                    Value::SingleQuotedString("k".into(), StringEscapeStyle::Standard)
+                        .with_empty_span()
                 )),
             }),
         ),
@@ -5045,7 +5133,8 @@ fn parse_is_distinct_from_json_arrow_precedence() {
                 left: Box::new(Expr::Identifier(Ident::new("b"))),
                 op: BinaryOperator::LongArrow,
                 right: Box::new(Expr::Value(
-                    Value::SingleQuotedString("k".into()).with_empty_span()
+                    Value::SingleQuotedString("k".into(), StringEscapeStyle::Standard)
+                        .with_empty_span()
                 )),
             }),
         ),
@@ -5057,4 +5146,9 @@ fn parse_is_distinct_from_json_arrow_precedence() {
 fn parse_bitstring_literal_escaping() {
     mysql_and_generic().verified_stmt("SELECT B''''");
     mysql_and_generic().verified_stmt("SELECT B'it''s'");
+}
+
+#[test]
+fn roundtrip_backslash_escaped_quoted_strings() {
+    mysql().verified_stmt(r#"SELECT "a\\b", "say \"hi\"", N'it\'s'"#);
 }

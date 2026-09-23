@@ -1293,7 +1293,9 @@ mod tests {
 
 #[cfg(test)]
 mod visit_mut_tests {
-    use crate::ast::{Ident, Statement, Value, ValueWithSpan, VisitMut, VisitorMut};
+    use crate::ast::{
+        Ident, Statement, StringEscapeStyle, Value, ValueWithSpan, VisitMut, VisitorMut,
+    };
     use crate::dialect::GenericDialect;
     use crate::parser::Parser;
     use crate::tokenizer::Tokenizer;
@@ -1309,7 +1311,10 @@ mod visit_mut_tests {
 
         fn pre_visit_value(&mut self, value: &mut ValueWithSpan) -> ControlFlow<Self::Break> {
             self.index += 1;
-            value.value = Value::SingleQuotedString(format!("REDACTED_{}", self.index));
+            value.value = Value::SingleQuotedString(
+                format!("REDACTED_{}", self.index),
+                StringEscapeStyle::Standard,
+            );
             ControlFlow::Continue(())
         }
 

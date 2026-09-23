@@ -23,7 +23,7 @@ use pretty_assertions::assert_eq;
 use sqlparser::{
     ast::{
         BinaryOperator, Expr, Ident, Insert, ObjectName, Query, QuoteDelimitedString, SetExpr,
-        Statement, TableAliasWithoutColumns, TableObject, Value, ValueWithSpan,
+        Statement, StringEscapeStyle, TableAliasWithoutColumns, TableObject, Value, ValueWithSpan,
     },
     dialect::OracleDialect,
     parser::ParserError,
@@ -71,7 +71,7 @@ fn muldiv_have_higher_precedence_than_strconcat() {
                 }),
                 op: BinaryOperator::StringConcat,
                 right: Box::new(Expr::Value(ValueWithSpan {
-                    value: Value::SingleQuotedString("asdf".into()),
+                    value: Value::SingleQuotedString("asdf".into(), StringEscapeStyle::Standard),
                     span: Span::empty(),
                 })),
             }),
@@ -108,7 +108,7 @@ fn plusminus_have_same_precedence_as_strconcat() {
                     }),
                     op: BinaryOperator::StringConcat,
                     right: Box::new(Expr::Value(ValueWithSpan {
-                        value: Value::SingleQuotedString(".3".into()),
+                        value: Value::SingleQuotedString(".3".into(), StringEscapeStyle::Standard),
                         span: Span::empty(),
                     })),
                 }),

@@ -235,7 +235,11 @@ fn test_redshift_json_path() {
                     },
                     JsonPathElem::Bracket {
                         key: Expr::Value(
-                            (Value::SingleQuotedString("id".to_owned())).with_empty_span()
+                            (Value::SingleQuotedString(
+                                "id".to_owned(),
+                                StringEscapeStyle::Standard
+                            ))
+                            .with_empty_span()
                         )
                     }
                 ]
@@ -261,7 +265,11 @@ fn test_redshift_json_path() {
                     },
                     JsonPathElem::Bracket {
                         key: Expr::Value(
-                            (Value::SingleQuotedString("id".to_owned())).with_empty_span()
+                            (Value::SingleQuotedString(
+                                "id".to_owned(),
+                                StringEscapeStyle::Standard
+                            ))
+                            .with_empty_span()
                         )
                     }
                 ]
@@ -400,7 +408,7 @@ fn parse_extract_single_quotes() {
 
 #[test]
 fn parse_string_literal_backslash_escape() {
-    redshift().one_statement_parses_to(r#"SELECT 'l\'auto'"#, "SELECT 'l''auto'");
+    redshift().verified_stmt(r#"SELECT 'l\'auto'"#);
 }
 
 #[test]

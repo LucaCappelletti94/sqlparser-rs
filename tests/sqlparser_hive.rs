@@ -23,8 +23,8 @@
 use sqlparser::ast::{
     ClusteredBy, CommentDef, CreateFunction, CreateFunctionBody, CreateFunctionUsing, CreateTable,
     Expr, Function, FunctionArgumentList, FunctionArguments, Ident, ObjectName, OrderByExpr,
-    OrderByOptions, OrderBySort, SelectItem, Set, Statement, TableFactor, UnaryOperator, Use,
-    Value,
+    OrderByOptions, OrderBySort, SelectItem, Set, Statement, StringEscapeStyle, TableFactor,
+    UnaryOperator, Use, Value,
 };
 use sqlparser::dialect::{AnsiDialect, GenericDialect, HiveDialect};
 use sqlparser::parser::ParserError;
@@ -413,8 +413,11 @@ fn parse_create_function() {
                 function_body,
                 Some(CreateFunctionBody::AsBeforeOptions {
                     body: Expr::Value(
-                        (Value::SingleQuotedString("org.random.class.Name".to_string()))
-                            .with_empty_span()
+                        (Value::SingleQuotedString(
+                            "org.random.class.Name".to_string(),
+                            StringEscapeStyle::Standard
+                        ))
+                        .with_empty_span()
                     ),
                     link_symbol: None,
                 })

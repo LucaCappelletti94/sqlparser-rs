@@ -12442,8 +12442,14 @@ impl<'a> Parser<'a> {
                 }
                 Keyword::NULL => ok_value(Value::Null),
                 Keyword::NoKeyword if w.quote_style.is_some() => match w.quote_style {
-                    Some('"') => ok_value(Value::DoubleQuotedString(w.value)),
-                    Some('\'') => ok_value(Value::SingleQuotedString(w.value)),
+                    Some('"') => ok_value(Value::DoubleQuotedString(
+                        w.value,
+                        StringEscapeStyle::Standard,
+                    )),
+                    Some('\'') => ok_value(Value::SingleQuotedString(
+                        w.value,
+                        StringEscapeStyle::Standard,
+                    )),
                     _ => self.expected(
                         "A value?",
                         TokenWithSpan {
@@ -12466,16 +12472,20 @@ impl<'a> Parser<'a> {
             Token::Number(n, l) => ok_value(Value::Number(Self::parse(n, span.start)?, l)),
             Token::SingleQuotedString(ref s) => ok_value(Value::SingleQuotedString(
                 self.maybe_concat_string_literal(s.to_string()),
+                self.string_escape_style(),
             )),
             Token::DoubleQuotedString(ref s) => ok_value(Value::DoubleQuotedString(
                 self.maybe_concat_string_literal(s.to_string()),
+                self.string_escape_style(),
             )),
-            Token::TripleSingleQuotedString(ref s) => {
-                ok_value(Value::TripleSingleQuotedString(s.to_string()))
-            }
-            Token::TripleDoubleQuotedString(ref s) => {
-                ok_value(Value::TripleDoubleQuotedString(s.to_string()))
-            }
+            Token::TripleSingleQuotedString(ref s) => ok_value(Value::TripleSingleQuotedString(
+                s.to_string(),
+                self.string_escape_style(),
+            )),
+            Token::TripleDoubleQuotedString(ref s) => ok_value(Value::TripleDoubleQuotedString(
+                s.to_string(),
+                self.string_escape_style(),
+            )),
             Token::DollarQuotedString(ref s) => ok_value(Value::DollarQuotedString(s.clone())),
             Token::SingleQuotedByteStringLiteral(ref s) => {
                 ok_value(Value::SingleQuotedByteStringLiteral(s.clone()))
@@ -12501,9 +12511,10 @@ impl<'a> Parser<'a> {
             Token::TripleDoubleQuotedRawStringLiteral(ref s) => {
                 ok_value(Value::TripleDoubleQuotedRawStringLiteral(s.clone()))
             }
-            Token::NationalStringLiteral(ref s) => {
-                ok_value(Value::NationalStringLiteral(s.to_string()))
-            }
+            Token::NationalStringLiteral(ref s) => ok_value(Value::NationalStringLiteral(
+                s.to_string(),
+                self.string_escape_style(),
+            )),
             Token::QuoteDelimitedStringLiteral(v) => {
                 ok_value(Value::QuoteDelimitedStringLiteral(v))
             }
@@ -12542,6 +12553,15 @@ impl<'a> Parser<'a> {
                     span,
                 },
             ),
+        }
+    }
+
+    /// How string literals were unescaped by the tokenizer, so they display the same way.
+    fn string_escape_style(&self) -> StringEscapeStyle {
+        if self.options.unescape && self.dialect.supports_string_literal_backslash_escape() {
+            StringEscapeStyle::Backslash
+        } else {
+            StringEscapeStyle::Standard
         }
     }
 
@@ -12622,10 +12642,12 @@ impl<'a> Parser<'a> {
         let span = next_token.span;
         match next_token.token {
             Token::SingleQuotedString(ref s) => Ok(Expr::Value(
-                Value::SingleQuotedString(s.to_string()).with_span(span),
+                Value::SingleQuotedString(s.to_string(), self.string_escape_style())
+                    .with_span(span),
             )),
             Token::DoubleQuotedString(ref s) => Ok(Expr::Value(
-                Value::DoubleQuotedString(s.to_string()).with_span(span),
+                Value::DoubleQuotedString(s.to_string(), self.string_escape_style())
+                    .with_span(span),
             )),
             Token::HexStringLiteral(ref s) => Ok(Expr::Value(
                 Value::HexStringLiteral(s.to_string()).with_span(span),
@@ -12662,7 +12684,11 @@ impl<'a> Parser<'a> {
                     Ok(Expr::Value(Value::DollarQuotedString(s).with_span(span)))
                 }
                 _ => Ok(Expr::Value(
-                    Value::SingleQuotedString(parser.parse_literal_string()?).with_span(span),
+                    Value::SingleQuotedString(
+                        parser.parse_literal_string()?,
+                        parser.string_escape_style(),
+                    )
+                    .with_span(span),
                 )),
             }
         };
@@ -20156,8 +20182,8 @@ impl<'a> Parser<'a> {
     fn parse_pragma_value(&mut self) -> Result<ValueWithSpan, ParserError> {
         let v = self.parse_value()?;
         match &v.value {
-            Value::SingleQuotedString(_) => Ok(v),
-            Value::DoubleQuotedString(_) => Ok(v),
+            Value::SingleQuotedString(_, _) => Ok(v),
+            Value::DoubleQuotedString(_, _) => Ok(v),
             Value::Number(_, _) => Ok(v),
             Value::Placeholder(_) => Ok(v),
             _ => {

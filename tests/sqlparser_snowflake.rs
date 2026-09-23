@@ -1849,7 +1849,13 @@ fn parse_snowflake_declare_exception() {
             Some(DeclareAssignment::Expr(
                 Expr::Tuple(vec![
                     Expr::value(number("42")),
-                    Expr::Value((Value::SingleQuotedString("ERROR".to_string())).with_empty_span()),
+                    Expr::Value(
+                        (Value::SingleQuotedString(
+                            "ERROR".to_string(),
+                            StringEscapeStyle::Standard,
+                        ))
+                        .with_empty_span(),
+                    ),
                 ])
                 .into(),
             )),
@@ -2047,25 +2053,32 @@ fn test_create_stage_with_stage_params() {
             assert!(stage_params.credentials.options.contains(&KeyValueOption {
                 option_name: "AWS_KEY_ID".to_string(),
                 option_value: KeyValueOptionKind::Single(
-                    Value::SingleQuotedString("1a2b3c".to_string()).with_empty_span()
+                    Value::SingleQuotedString("1a2b3c".to_string(), StringEscapeStyle::Standard)
+                        .with_empty_span()
                 ),
             }));
             assert!(stage_params.credentials.options.contains(&KeyValueOption {
                 option_name: "AWS_SECRET_KEY".to_string(),
                 option_value: KeyValueOptionKind::Single(
-                    Value::SingleQuotedString("4x5y6z".to_string()).with_empty_span()
+                    Value::SingleQuotedString("4x5y6z".to_string(), StringEscapeStyle::Standard)
+                        .with_empty_span()
                 ),
             }));
             assert!(stage_params.encryption.options.contains(&KeyValueOption {
                 option_name: "MASTER_KEY".to_string(),
                 option_value: KeyValueOptionKind::Single(
-                    Value::SingleQuotedString("key".to_string()).with_empty_span()
+                    Value::SingleQuotedString("key".to_string(), StringEscapeStyle::Standard)
+                        .with_empty_span()
                 ),
             }));
             assert!(stage_params.encryption.options.contains(&KeyValueOption {
                 option_name: "TYPE".to_string(),
                 option_value: KeyValueOptionKind::Single(
-                    Value::SingleQuotedString("AWS_SSE_KMS".to_string()).with_empty_span()
+                    Value::SingleQuotedString(
+                        "AWS_SSE_KMS".to_string(),
+                        StringEscapeStyle::Standard
+                    )
+                    .with_empty_span()
                 ),
             }));
         }
@@ -2099,7 +2112,11 @@ fn test_create_stage_with_directory_table_params() {
             assert!(directory_table_params.options.contains(&KeyValueOption {
                 option_name: "NOTIFICATION_INTEGRATION".to_string(),
                 option_value: KeyValueOptionKind::Single(
-                    Value::SingleQuotedString("some-string".to_string()).with_empty_span()
+                    Value::SingleQuotedString(
+                        "some-string".to_string(),
+                        StringEscapeStyle::Standard
+                    )
+                    .with_empty_span()
                 ),
             }));
         }
@@ -2133,7 +2150,8 @@ fn test_create_stage_with_file_format() {
             assert!(file_format.options.contains(&KeyValueOption {
                 option_name: "ESCAPE".to_string(),
                 option_value: KeyValueOptionKind::Single(
-                    Value::SingleQuotedString(r#"\\"#.to_string()).with_empty_span()
+                    Value::SingleQuotedString(r#"\\"#.to_string(), StringEscapeStyle::Standard)
+                        .with_empty_span()
                 ),
             }));
         }
@@ -2239,7 +2257,8 @@ fn test_create_file_format_with_options() {
             assert!(options.options.contains(&KeyValueOption {
                 option_name: "FIELD_DELIMITER".to_string(),
                 option_value: KeyValueOptionKind::Single(
-                    Value::SingleQuotedString("|".to_string()).with_empty_span()
+                    Value::SingleQuotedString("|".to_string(), StringEscapeStyle::Standard)
+                        .with_empty_span()
                 ),
             }));
             assert!(options.options.contains(&KeyValueOption {
@@ -2417,25 +2436,32 @@ fn test_copy_into_with_stage_params() {
             assert!(stage_params.credentials.options.contains(&KeyValueOption {
                 option_name: "AWS_KEY_ID".to_string(),
                 option_value: KeyValueOptionKind::Single(
-                    Value::SingleQuotedString("1a2b3c".to_string()).with_empty_span()
+                    Value::SingleQuotedString("1a2b3c".to_string(), StringEscapeStyle::Standard)
+                        .with_empty_span()
                 ),
             }));
             assert!(stage_params.credentials.options.contains(&KeyValueOption {
                 option_name: "AWS_SECRET_KEY".to_string(),
                 option_value: KeyValueOptionKind::Single(
-                    Value::SingleQuotedString("4x5y6z".to_string()).with_empty_span()
+                    Value::SingleQuotedString("4x5y6z".to_string(), StringEscapeStyle::Standard)
+                        .with_empty_span()
                 ),
             }));
             assert!(stage_params.encryption.options.contains(&KeyValueOption {
                 option_name: "MASTER_KEY".to_string(),
                 option_value: KeyValueOptionKind::Single(
-                    Value::SingleQuotedString("key".to_string()).with_empty_span()
+                    Value::SingleQuotedString("key".to_string(), StringEscapeStyle::Standard)
+                        .with_empty_span()
                 ),
             }));
             assert!(stage_params.encryption.options.contains(&KeyValueOption {
                 option_name: "TYPE".to_string(),
                 option_value: KeyValueOptionKind::Single(
-                    Value::SingleQuotedString("AWS_SSE_KMS".to_string()).with_empty_span()
+                    Value::SingleQuotedString(
+                        "AWS_SSE_KMS".to_string(),
+                        StringEscapeStyle::Standard
+                    )
+                    .with_empty_span()
                 ),
             }));
         }
@@ -2556,7 +2582,13 @@ fn test_copy_into_with_transformations() {
             assert_eq!(
                 from_transformations.as_ref().unwrap()[4],
                 StageLoadSelectItemKind::SelectItem(SelectItem::ExprWithAlias {
-                    expr: Expr::Value(Value::SingleQuotedString("5".parse().unwrap()).into()),
+                    expr: Expr::Value(
+                        Value::SingleQuotedString(
+                            "5".parse().unwrap(),
+                            StringEscapeStyle::Standard
+                        )
+                        .into()
+                    ),
                     alias: Ident::new("const_str".to_string())
                 })
             );
@@ -2629,7 +2661,8 @@ fn test_copy_into_file_format() {
             assert!(file_format.options.contains(&KeyValueOption {
                 option_name: "ESCAPE".to_string(),
                 option_value: KeyValueOptionKind::Single(
-                    Value::SingleQuotedString(r#"\\"#.to_string()).with_empty_span()
+                    Value::SingleQuotedString(r#"\\"#.to_string(), StringEscapeStyle::Standard)
+                        .with_empty_span()
                 ),
             }));
         }
@@ -2671,7 +2704,8 @@ fn test_copy_into_file_format() {
             assert!(file_format.options.contains(&KeyValueOption {
                 option_name: "ESCAPE".to_string(),
                 option_value: KeyValueOptionKind::Single(
-                    Value::SingleQuotedString(r#"\\"#.to_string()).with_empty_span()
+                    Value::SingleQuotedString(r#"\\"#.to_string(), StringEscapeStyle::Standard)
+                        .with_empty_span()
                 ),
             }));
         }
@@ -2858,12 +2892,14 @@ fn test_snowflake_trim() {
     assert_eq!(
         &Expr::Trim {
             expr: Box::new(Expr::Value(
-                (Value::SingleQuotedString("xyz".to_owned())).with_empty_span()
+                (Value::SingleQuotedString("xyz".to_owned(), StringEscapeStyle::Standard))
+                    .with_empty_span()
             )),
             trim_where: None,
             trim_what: None,
             trim_characters: Some(vec![Expr::Value(
-                (Value::SingleQuotedString("a".to_owned())).with_empty_span()
+                (Value::SingleQuotedString("a".to_owned(), StringEscapeStyle::Standard))
+                    .with_empty_span()
             )]),
         },
         expr_from_projection(only(&select.projection))
@@ -4679,7 +4715,8 @@ fn test_snowflake_identifier_function() {
                 *args,
                 FunctionArguments::List(FunctionArgumentList {
                     args: vec![FunctionArg::Unnamed(FunctionArgExpr::Expr(Expr::Value(
-                        Value::SingleQuotedString("email".to_string()).into()
+                        Value::SingleQuotedString("email".to_string(), StringEscapeStyle::Standard)
+                            .into()
                     )))],
                     clauses: vec![],
                     duplicate_treatment: None
@@ -4700,7 +4737,11 @@ fn test_snowflake_identifier_function() {
                 *args,
                 FunctionArguments::List(FunctionArgumentList {
                     args: vec![FunctionArg::Unnamed(FunctionArgExpr::Expr(Expr::Value(
-                        Value::SingleQuotedString("\"Email\"".to_string()).into()
+                        Value::SingleQuotedString(
+                            "\"Email\"".to_string(),
+                            StringEscapeStyle::Standard
+                        )
+                        .into()
                     )))],
                     clauses: vec![],
                     duplicate_treatment: None
@@ -4724,7 +4765,11 @@ fn test_snowflake_identifier_function() {
                 *args,
                 FunctionArguments::List(FunctionArgumentList {
                     args: vec![FunctionArg::Unnamed(FunctionArgExpr::Expr(Expr::Value(
-                        Value::SingleQuotedString("alias1".to_string()).into()
+                        Value::SingleQuotedString(
+                            "alias1".to_string(),
+                            StringEscapeStyle::Standard
+                        )
+                        .into()
                     )))],
                     clauses: vec![],
                     duplicate_treatment: None
@@ -4742,7 +4787,8 @@ fn test_snowflake_identifier_function() {
                 ObjectName(vec![ObjectNamePart::Function(ObjectNamePartFunction {
                     name: Ident::new("IDENTIFIER"),
                     args: vec![FunctionArg::Unnamed(FunctionArgExpr::Expr(Expr::Value(
-                        Value::SingleQuotedString("tbl".to_string()).into()
+                        Value::SingleQuotedString("tbl".to_string(), StringEscapeStyle::Standard)
+                            .into()
                     )))]
                 })])
             );
@@ -4759,7 +4805,11 @@ fn test_snowflake_identifier_function() {
                     ObjectNamePartFunction {
                         name: Ident::new("IDENTIFIER"),
                         args: vec![FunctionArg::Unnamed(FunctionArgExpr::Expr(Expr::Value(
-                            Value::SingleQuotedString("db1.sc1".to_string()).into()
+                            Value::SingleQuotedString(
+                                "db1.sc1".to_string(),
+                                StringEscapeStyle::Standard
+                            )
+                            .into()
                         )))]
                     }
                 )]))
@@ -4776,7 +4826,8 @@ fn test_snowflake_identifier_function() {
                 ObjectName(vec![ObjectNamePart::Function(ObjectNamePartFunction {
                     name: Ident::new("IDENTIFIER"),
                     args: vec![FunctionArg::Unnamed(FunctionArgExpr::Expr(Expr::Value(
-                        Value::SingleQuotedString("tbl".to_string()).into()
+                        Value::SingleQuotedString("tbl".to_string(), StringEscapeStyle::Standard)
+                            .into()
                     )))]
                 })])
             );
