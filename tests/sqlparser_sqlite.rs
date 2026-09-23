@@ -1024,6 +1024,25 @@ fn parse_n_prefix_not_national_string() {
     all_dialects_where(|d| d.supports_national_string_literal()).verified_stmt("SELECT N'hello'");
 }
 
+#[test]
+fn test_in_table_and_table_valued_function() {
+    sqlite().verified_stmt("SELECT a IN t FROM t");
+    sqlite().verified_stmt("SELECT a IN main.t FROM t");
+    // Table-valued function with no arguments
+    sqlite().verified_stmt("SELECT a IN f() FROM t");
+    // NOT IN variants round-trip
+    sqlite().verified_stmt("SELECT a NOT IN t FROM t");
+    sqlite().verified_stmt("SELECT a NOT IN main.t FROM t");
+    sqlite().verified_stmt("SELECT a NOT IN f() FROM t");
+    // Table-valued function with arguments
+    sqlite().verified_stmt("SELECT a IN f(1, 2) FROM t");
+
+    // GenericDialect rejects bare-identifier IN (no parentheses, not UNNEST)
+    let res = TestedDialects::new(vec![Box::new(GenericDialect {})])
+        .parse_sql_statements("SELECT a IN t FROM t");
+    assert!(res.is_err(), "GenericDialect should reject IN <table>");
+}
+
 fn sqlite() -> TestedDialects {
     TestedDialects::new(vec![Box::new(SQLiteDialect {})])
 }
