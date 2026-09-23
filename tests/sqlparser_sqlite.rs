@@ -1024,6 +1024,17 @@ fn parse_n_prefix_not_national_string() {
     all_dialects_where(|d| d.supports_national_string_literal()).verified_stmt("SELECT N'hello'");
 }
 
+#[test]
+fn parse_bitwise_shift_operators() {
+    sqlite().verified_stmt("SELECT a << 1 FROM t");
+    sqlite().verified_stmt("SELECT a >> 1 FROM t");
+
+    // A dialect without this support rejects the syntax
+    let res = TestedDialects::new(vec![Box::new(sqlparser::dialect::HiveDialect {})])
+        .parse_sql_statements("SELECT a << 1 FROM t");
+    assert!(res.is_err());
+}
+
 fn sqlite() -> TestedDialects {
     TestedDialects::new(vec![Box::new(SQLiteDialect {})])
 }
