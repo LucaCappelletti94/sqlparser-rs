@@ -25,9 +25,9 @@ use serde::{Deserialize, Serialize};
 use sqlparser_derive::{Visit, VisitMut};
 
 use crate::ast::{
-    ClusteredBy, ColumnDef, CommentDef, CreateTable, CreateTableLikeKind, CreateTableOptions,
-    DistStyle, Expr, FileFormat, ForValues, HiveDistributionStyle, HiveFormat, Ident,
-    InitializeKind, ObjectName, OnCommit, OneOrManyWithParens, Query, RefreshModeKind,
+    AttachedToken, ClusteredBy, ColumnDef, CommentDef, CreateTable, CreateTableLikeKind,
+    CreateTableOptions, DistStyle, Expr, FileFormat, ForValues, HiveDistributionStyle, HiveFormat,
+    Ident, InitializeKind, ObjectName, OnCommit, OneOrManyWithParens, Query, RefreshModeKind,
     RowAccessPolicy, Statement, StorageLifecyclePolicy, StorageSerializationPolicy,
     TableConstraint, TableVersion, Tag, WithData, WrappedCollection,
 };
@@ -65,6 +65,8 @@ use crate::parser::ParserError;
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct CreateTableBuilder {
+    /// Token for the `CREATE` keyword.
+    pub create_token: AttachedToken,
     /// Whether the statement uses `OR REPLACE`.
     pub or_replace: bool,
     /// Whether the table is `TEMPORARY`.
@@ -200,6 +202,7 @@ impl CreateTableBuilder {
     /// Create a new `CreateTableBuilder` for the given table name.
     pub fn new(name: ObjectName) -> Self {
         Self {
+            create_token: AttachedToken::empty(),
             or_replace: false,
             temporary: false,
             unlogged: false,
@@ -265,6 +268,11 @@ impl CreateTableBuilder {
             fallback: None,
             with_data: None,
         }
+    }
+    /// Set the token for the `CREATE` keyword.
+    pub fn create_token(mut self, create_token: AttachedToken) -> Self {
+        self.create_token = create_token;
+        self
     }
     /// Set `OR REPLACE` for the CREATE TABLE statement.
     pub fn or_replace(mut self, or_replace: bool) -> Self {
@@ -601,6 +609,7 @@ impl CreateTableBuilder {
     /// Consume the builder and produce a `CreateTable`.
     pub fn build(self) -> CreateTable {
         CreateTable {
+            create_token: self.create_token,
             or_replace: self.or_replace,
             temporary: self.temporary,
             unlogged: self.unlogged,
@@ -687,6 +696,7 @@ impl TryFrom<Statement> for CreateTableBuilder {
 impl From<CreateTable> for CreateTableBuilder {
     fn from(table: CreateTable) -> Self {
         Self {
+            create_token: table.create_token,
             or_replace: table.or_replace,
             temporary: table.temporary,
             unlogged: table.unlogged,

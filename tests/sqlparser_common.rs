@@ -8690,6 +8690,7 @@ fn parse_create_view() {
     let sql = "CREATE VIEW myschema.myview AS SELECT foo FROM bar";
     match verified_stmt(sql) {
         Statement::CreateView(CreateView {
+            create_token: _,
             or_alter,
             name,
             columns,
@@ -8809,6 +8810,7 @@ fn parse_create_view_temporary() {
     let sql = "CREATE TEMPORARY VIEW myschema.myview AS SELECT foo FROM bar";
     match verified_stmt(sql) {
         Statement::CreateView(CreateView {
+            create_token: _,
             or_alter,
             name,
             columns,
@@ -8851,6 +8853,7 @@ fn parse_create_or_replace_view() {
     let sql = "CREATE OR REPLACE VIEW v AS SELECT 1";
     match verified_stmt(sql) {
         Statement::CreateView(CreateView {
+            create_token: _,
             or_alter,
             name,
             columns,
@@ -8897,6 +8900,7 @@ fn parse_create_or_replace_materialized_view() {
     let sql = "CREATE OR REPLACE MATERIALIZED VIEW v AS SELECT 1";
     match verified_stmt(sql) {
         Statement::CreateView(CreateView {
+            create_token: _,
             or_alter,
             name,
             columns,
@@ -8939,6 +8943,7 @@ fn parse_create_materialized_view() {
     let sql = "CREATE MATERIALIZED VIEW myschema.myview AS SELECT foo FROM bar";
     match verified_stmt(sql) {
         Statement::CreateView(CreateView {
+            create_token: _,
             or_alter,
             name,
             or_replace,
@@ -8981,6 +8986,7 @@ fn parse_create_materialized_view_with_cluster_by() {
     let sql = "CREATE MATERIALIZED VIEW myschema.myview CLUSTER BY (foo) AS SELECT foo FROM bar";
     match verified_stmt(sql) {
         Statement::CreateView(CreateView {
+            create_token: _,
             or_alter,
             name,
             or_replace,
@@ -9934,6 +9940,7 @@ fn test_create_index_with_using_function() {
     ];
     match verified_stmt(sql) {
         Statement::CreateIndex(CreateIndex {
+            create_token: _,
             name: Some(name),
             table_name,
             using,
@@ -9991,6 +9998,7 @@ fn test_create_index_with_with_clause() {
     let dialects = all_dialects_where(|d| d.supports_create_index_with_clause());
     match dialects.verified_stmt(sql) {
         Statement::CreateIndex(CreateIndex {
+            create_token: _,
             name: Some(name),
             table_name,
             using: None,

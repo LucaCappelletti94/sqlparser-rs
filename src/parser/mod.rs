@@ -5257,6 +5257,7 @@ impl<'a> Parser<'a> {
 
     /// Parse a SQL CREATE statement
     pub fn parse_create(&mut self) -> Result<Statement, ParserError> {
+        let create_token = self.get_current_token().clone();
         let or_replace = self.parse_keywords(&[Keyword::OR, Keyword::REPLACE]);
         let or_alter = self.parse_keywords(&[Keyword::OR, Keyword::ALTER]);
         let multiset = self.maybe_parse_multiset();
@@ -5282,12 +5283,20 @@ impl<'a> Parser<'a> {
             && self.parse_one_of_keywords(&[Keyword::PERSISTENT]).is_some();
         let create_view_params = self.parse_create_view_params()?;
         if self.peek_keywords(&[Keyword::SNAPSHOT, Keyword::TABLE]) {
-            self.parse_create_snapshot_table().map(Into::into)
+            self.parse_create_snapshot_table(create_token)
+                .map(Into::into)
         } else if self.peek_keywords(&[Keyword::TEXT, Keyword::SEARCH]) {
             self.parse_create_text_search().map(Into::into)
         } else if self.parse_keyword(Keyword::TABLE) {
             self.parse_create_table(
-                or_replace, temporary, unlogged, global, transient, volatile, multiset,
+                create_token,
+                or_replace,
+                temporary,
+                unlogged,
+                global,
+                transient,
+                volatile,
+                multiset,
             )
             .map(Into::into)
         } else if self.peek_keyword(Keyword::MATERIALIZED)
@@ -5295,12 +5304,19 @@ impl<'a> Parser<'a> {
             || self.peek_keywords(&[Keyword::SECURE, Keyword::MATERIALIZED, Keyword::VIEW])
             || self.peek_keywords(&[Keyword::SECURE, Keyword::VIEW])
         {
-            self.parse_create_view(or_alter, or_replace, temporary, create_view_params)
-                .map(Into::into)
+            self.parse_create_view(
+                create_token,
+                or_alter,
+                or_replace,
+                temporary,
+                create_view_params,
+            )
+            .map(Into::into)
         } else if self.parse_keyword(Keyword::POLICY) {
             self.parse_create_policy().map(Into::into)
         } else if self.parse_keyword(Keyword::EXTERNAL) {
-            self.parse_create_external_table(or_replace).map(Into::into)
+            self.parse_create_external_table(create_token, or_replace)
+                .map(Into::into)
         } else if self.parse_keyword(Keyword::FUNCTION) {
             self.parse_create_function(or_alter, or_replace, temporary)
         } else if self.parse_keyword(Keyword::DOMAIN) {
@@ -5329,11 +5345,11 @@ impl<'a> Parser<'a> {
         } else if self.parse_keyword(Keyword::EXTENSION) {
             self.parse_create_extension().map(Into::into)
         } else if self.parse_keyword(Keyword::INDEX) {
-            self.parse_create_index(false).map(Into::into)
+            self.parse_create_index(create_token, false).map(Into::into)
         } else if self.parse_keywords(&[Keyword::UNIQUE, Keyword::INDEX]) {
-            self.parse_create_index(true).map(Into::into)
+            self.parse_create_index(create_token, true).map(Into::into)
         } else if self.parse_keyword(Keyword::VIRTUAL) {
-            self.parse_create_virtual_table()
+            self.parse_create_virtual_table(create_token)
         } else if self.parse_keyword(Keyword::DATABASE) {
             self.parse_create_database()
         } else if self.parse_keyword(Keyword::ROLE) {
@@ -5643,7 +5659,10 @@ impl<'a> Parser<'a> {
     }
 
     /// SQLite-specific `CREATE VIRTUAL TABLE`
-    pub fn parse_create_virtual_table(&mut self) -> Result<Statement, ParserError> {
+    pub fn parse_create_virtual_table(
+        &mut self,
+        create_token: TokenWithSpan,
+    ) -> Result<Statement, ParserError> {
         self.expect_keyword_is(Keyword::TABLE)?;
         let if_not_exists = self.parse_keywords(&[Keyword::IF, Keyword::NOT, Keyword::EXISTS]);
         let table_name = self.parse_object_name(false)?;
@@ -5655,6 +5674,7 @@ impl<'a> Parser<'a> {
         // we don't implement that.
         let module_args = self.parse_parenthesized_column_list(Optional, false)?;
         Ok(Statement::CreateVirtualTable {
+            create_token: create_token.into(),
             name: table_name,
             if_not_exists,
             module_name,
@@ -6631,6 +6651,7 @@ impl<'a> Parser<'a> {
     /// Parse a `CREATE EXTERNAL TABLE` statement.
     pub fn parse_create_external_table(
         &mut self,
+        create_token: TokenWithSpan,
         or_replace: bool,
     ) -> Result<CreateTable, ParserError> {
         self.expect_keyword_is(Keyword::TABLE)?;
@@ -6669,6 +6690,7 @@ impl<'a> Parser<'a> {
             CreateTableOptions::None
         };
         Ok(CreateTableBuilder::new(table_name)
+            .create_token(create_token.into())
             .columns(columns)
             .constraints(constraints)
             .hive_distribution(hive_distribution)
@@ -6686,7 +6708,10 @@ impl<'a> Parser<'a> {
     /// Parse `CREATE SNAPSHOT TABLE` statement.
     ///
     /// <https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language#create_snapshot_table_statement>
-    pub fn parse_create_snapshot_table(&mut self) -> Result<CreateTable, ParserError> {
+    pub fn parse_create_snapshot_table(
+        &mut self,
+        create_token: TokenWithSpan,
+    ) -> Result<CreateTable, ParserError> {
         self.expect_keywords(&[Keyword::SNAPSHOT, Keyword::TABLE])?;
         let if_not_exists = self.parse_keywords(&[Keyword::IF, Keyword::NOT, Keyword::EXISTS]);
         let table_name = self.parse_object_name(true)?;
@@ -6709,6 +6734,7 @@ impl<'a> Parser<'a> {
         };
 
         Ok(CreateTableBuilder::new(table_name)
+            .create_token(create_token.into())
             .snapshot(true)
             .if_not_exists(if_not_exists)
             .clone_clause(clone)
@@ -6761,6 +6787,7 @@ impl<'a> Parser<'a> {
     /// Parse a `CREATE VIEW` statement.
     pub fn parse_create_view(
         &mut self,
+        create_token: TokenWithSpan,
         or_alter: bool,
         or_replace: bool,
         temporary: bool,
@@ -6839,6 +6866,7 @@ impl<'a> Parser<'a> {
             ]);
 
         Ok(CreateView {
+            create_token: create_token.into(),
             or_alter,
             name,
             columns,
@@ -8279,7 +8307,11 @@ impl<'a> Parser<'a> {
     }
 
     /// Parse a `CREATE INDEX` statement.
-    pub fn parse_create_index(&mut self, unique: bool) -> Result<CreateIndex, ParserError> {
+    pub fn parse_create_index(
+        &mut self,
+        create_token: TokenWithSpan,
+        unique: bool,
+    ) -> Result<CreateIndex, ParserError> {
         let concurrently = self.parse_keyword(Keyword::CONCURRENTLY);
         let r#async = self.parse_keyword(Keyword::ASYNC);
         let if_not_exists = self.parse_keywords(&[Keyword::IF, Keyword::NOT, Keyword::EXISTS]);
@@ -8355,6 +8387,7 @@ impl<'a> Parser<'a> {
         }
 
         Ok(CreateIndex {
+            create_token: create_token.into(),
             name: index_name,
             table_name,
             using,
@@ -8723,6 +8756,7 @@ impl<'a> Parser<'a> {
     #[allow(clippy::too_many_arguments)]
     pub fn parse_create_table(
         &mut self,
+        create_token: TokenWithSpan,
         or_replace: bool,
         temporary: bool,
         unlogged: bool,
@@ -8906,6 +8940,7 @@ impl<'a> Parser<'a> {
         };
 
         Ok(CreateTableBuilder::new(table_name)
+            .create_token(create_token.into())
             .temporary(temporary)
             .unlogged(unlogged)
             .columns(columns)

@@ -375,12 +375,14 @@ impl Spanned for Statement {
             Statement::CreateView(create_view) => create_view.span(),
             Statement::CreateTable(create_table) => create_table.span(),
             Statement::CreateVirtualTable {
+                create_token,
                 name,
                 if_not_exists: _,
                 module_name,
                 module_args,
             } => union_spans(
-                core::iter::once(name.span())
+                core::iter::once(create_token.0.span)
+                    .chain(core::iter::once(name.span()))
                     .chain(core::iter::once(module_name.span))
                     .chain(module_args.iter().map(|i| i.span)),
             ),
@@ -550,6 +552,7 @@ impl Spanned for Use {
 impl Spanned for CreateTable {
     fn span(&self) -> Span {
         let CreateTable {
+            create_token,
             or_replace: _,    // bool
             temporary: _,     // bool
             unlogged: _,      // bool
@@ -617,7 +620,8 @@ impl Spanned for CreateTable {
         } = self;
 
         union_spans(
-            core::iter::once(name.span())
+            core::iter::once(create_token.0.span)
+                .chain(core::iter::once(name.span()))
                 .chain(core::iter::once(table_options.span()))
                 .chain(columns.iter().map(|i| i.span()))
                 .chain(constraints.iter().map(|i| i.span()))
@@ -695,6 +699,7 @@ impl Spanned for ForValues {
 impl Spanned for CreateIndex {
     fn span(&self) -> Span {
         let CreateIndex {
+            create_token,
             name,
             table_name,
             using: _,
@@ -712,8 +717,8 @@ impl Spanned for CreateIndex {
         } = self;
 
         union_spans(
-            name.iter()
-                .map(|i| i.span())
+            core::iter::once(create_token.0.span)
+                .chain(name.iter().map(|i| i.span()))
                 .chain(core::iter::once(table_name.span()))
                 .chain(columns.iter().map(|i| i.column.span()))
                 .chain(include.iter().map(|i| i.span))
@@ -2507,7 +2512,8 @@ impl Spanned for AlterSchema {
 impl Spanned for CreateView {
     fn span(&self) -> Span {
         union_spans(
-            core::iter::once(self.name.span())
+            core::iter::once(self.create_token.0.span)
+                .chain(core::iter::once(self.name.span()))
                 .chain(self.columns.iter().map(|i| i.span()))
                 .chain(core::iter::once(self.query.span()))
                 .chain(core::iter::once(self.options.span()))
@@ -3162,5 +3168,32 @@ WHERE id = 1
             stmt_span,
             Span::new(Location::new(2, 8), Location::new(4, 52))
         );
+    }
+
+    #[test]
+    fn test_create_statement_span_starts_at_create() {
+        let cases: [(&dyn Dialect, &str); 10] = [
+            (&GenericDialect, "CREATE TABLE IF NOT EXISTS users (id INT)"),
+            (
+                &GenericDialect,
+                "CREATE OR REPLACE TEMPORARY TABLE t (a INT)",
+            ),
+            (
+                &GenericDialect,
+                "CREATE EXTERNAL TABLE t (a INT) STORED AS TEXTFILE LOCATION '/x'",
+            ),
+            (&GenericDialect, "CREATE SNAPSHOT TABLE t CLONE s"),
+            (&SnowflakeDialect, "CREATE TRANSIENT TABLE t (a INT)"),
+            (&GenericDialect, "CREATE VIEW v AS SELECT 1"),
+            (&GenericDialect, "CREATE MATERIALIZED VIEW v AS SELECT 1"),
+            (&GenericDialect, "CREATE INDEX i ON t (a)"),
+            (&GenericDialect, "CREATE UNIQUE INDEX i ON t (a)"),
+            (&GenericDialect, "CREATE VIRTUAL TABLE t USING m(a)"),
+        ];
+        for (dialect, sql) in cases {
+            let r = Parser::parse_sql(dialect, sql).unwrap();
+            assert_eq!(1, r.len());
+            assert_eq!(r[0].span().start, Location::new(1, 1), "{sql}");
+        }
     }
 }

@@ -3756,6 +3756,8 @@ pub enum Statement {
     /// ```
     /// Sqlite specific statement
     CreateVirtualTable {
+        /// Token for the `CREATE` keyword
+        create_token: AttachedToken,
         #[cfg_attr(feature = "visitor", visit(with = "visit_relation"))]
         /// Name of the virtual table module instance.
         name: ObjectName,
@@ -5590,6 +5592,7 @@ impl fmt::Display for Statement {
                 Ok(())
             }
             Statement::CreateVirtualTable {
+                create_token: _,
                 name,
                 if_not_exists,
                 module_name,

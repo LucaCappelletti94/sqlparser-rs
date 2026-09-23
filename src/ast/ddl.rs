@@ -2817,6 +2817,8 @@ impl fmt::Display for ClusteredBy {
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct CreateIndex {
+    /// Token for the `CREATE` keyword
+    pub create_token: AttachedToken,
     /// index name
     pub name: Option<ObjectName>,
     #[cfg_attr(feature = "visitor", visit(with = "visit_relation"))]
@@ -2913,6 +2915,8 @@ impl fmt::Display for CreateIndex {
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct CreateTable {
+    /// Token for the `CREATE` keyword
+    pub create_token: AttachedToken,
     /// `OR REPLACE` clause
     pub or_replace: bool,
     /// `TEMP` or `TEMPORARY` clause
@@ -4374,6 +4378,8 @@ impl Spanned for Msck {
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct CreateView {
+    /// Token for the `CREATE` keyword
+    pub create_token: AttachedToken,
     /// True if this is a `CREATE OR ALTER VIEW` statement
     ///
     /// [MsSql](https://learn.microsoft.com/en-us/sql/t-sql/statements/create-view-transact-sql)
