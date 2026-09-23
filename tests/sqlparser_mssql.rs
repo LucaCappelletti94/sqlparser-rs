@@ -393,7 +393,7 @@ fn parse_create_function() {
         END\
     ";
     assert_eq!(
-        ParserError::ParserError("Unparsable function body".to_owned()),
+        parser_error("Unparsable function body".to_owned()),
         ms().parse_sql_statements(create_multi_statement_tvf_without_table_definition)
             .unwrap_err()
     );
@@ -405,9 +405,7 @@ fn parse_create_function() {
         RETURN 'hi'\
     ";
     assert_eq!(
-        ParserError::ParserError(
-            "Expected a subquery (or bare SELECT statement) after RETURN".to_owned()
-        ),
+        parser_error("Expected a subquery (or bare SELECT statement) after RETURN".to_owned()),
         ms().parse_sql_statements(create_inline_tvf_without_subquery_or_bare_select)
             .unwrap_err()
     );
@@ -1332,7 +1330,7 @@ fn parse_convert() {
 
     let error_sql = "SELECT CONVERT(INT, 'foo',) FROM T";
     assert_eq!(
-        ParserError::ParserError("Expected: an expression, found: )".to_owned()),
+        parser_error("Expected: an expression, found: )".to_owned()),
         ms().parse_sql_statements(error_sql).unwrap_err()
     );
 }
@@ -2940,4 +2938,16 @@ fn parse_bracket_quoted_function_argument_name() {
             default_expr: None,
         }])
     );
+}
+
+#[test]
+fn parse_declare_without_at_sign_reports_location() {
+    let err = ms()
+        .parse_sql_statements_with_locations("DECLARE foo INT")
+        .unwrap_err();
+    assert_eq!(
+        err.to_string(),
+        "sql parser error: Invalid MsSql variable declaration. at Line: 1, Column: 9"
+    );
+    assert!(matches!(err, ParserError::ParserError { .. }));
 }

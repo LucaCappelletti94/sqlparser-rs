@@ -38,7 +38,7 @@ use crate::ast::{
 };
 use crate::dialect::{Dialect, Precedence};
 use crate::keywords::Keyword;
-use crate::parser::{IsOptional, Parser, ParserError};
+use crate::parser::{parser_err, IsOptional, Parser, ParserError};
 use crate::tokenizer::TokenWithSpan;
 use crate::tokenizer::{Span, Token};
 #[cfg(not(feature = "std"))]
@@ -435,7 +435,7 @@ impl Dialect for SnowflakeDialect {
             } else if parser.parse_keywords(&[Keyword::TAG]) {
                 Ok(parse_column_tags(parser, with).map(|p| Some(ColumnOption::Tags(p))))
             } else {
-                Err(ParserError::ParserError("not found match".to_string()))
+                parser_err!("not found match", parser.peek_token_ref().span)
             }
         })
     }
@@ -742,9 +742,10 @@ fn parse_file_staging_command(kw: Keyword, parser: &mut Parser) -> Result<Statem
         Keyword::REMOVE | Keyword::RM => {
             Ok(Statement::Remove(FileStagingCommand { stage, pattern }))
         }
-        _ => Err(ParserError::ParserError(
-            "unexpected stage command, expecting LIST, LS, REMOVE or RM".to_string(),
-        )),
+        _ => parser_err!(
+            "unexpected stage command, expecting LIST, LS, REMOVE or RM",
+            parser.get_current_token().span
+        ),
     }
 }
 
@@ -1092,9 +1093,10 @@ pub fn parse_create_table(
     builder = builder.table_options(table_options);
 
     if iceberg && builder.base_location.is_none() {
-        return Err(ParserError::ParserError(
-            "BASE_LOCATION is required for ICEBERG tables".to_string(),
-        ));
+        return parser_err!(
+            "BASE_LOCATION is required for ICEBERG tables",
+            parser.peek_token_ref().span
+        );
     }
 
     Ok(builder.build())
@@ -1563,9 +1565,15 @@ fn parse_select_item_for_data_load(
     let next_token = parser.next_token();
     match next_token.token {
         Token::Placeholder(w) => {
-            file_col_num = w.to_string().split_off(1).parse::<i32>().map_err(|e| {
-                ParserError::ParserError(format!("Could not parse '{w}' as i32: {e}"))
-            })?;
+            file_col_num = match w.to_string().split_off(1).parse::<i32>() {
+                Ok(n) => n,
+                Err(e) => {
+                    return parser_err!(
+                        format!("Could not parse '{w}' as i32: {e}"),
+                        next_token.span
+                    )
+                }
+            };
             Ok(())
         }
         Token::Word(w) => {
@@ -1581,9 +1589,15 @@ fn parse_select_item_for_data_load(
         let col_num_token = parser.next_token();
         match col_num_token.token {
             Token::Placeholder(w) => {
-                file_col_num = w.to_string().split_off(1).parse::<i32>().map_err(|e| {
-                    ParserError::ParserError(format!("Could not parse '{w}' as i32: {e}"))
-                })?;
+                file_col_num = match w.to_string().split_off(1).parse::<i32>() {
+                    Ok(n) => n,
+                    Err(e) => {
+                        return parser_err!(
+                            format!("Could not parse '{w}' as i32: {e}"),
+                            col_num_token.span
+                        )
+                    }
+                };
                 Ok(())
             }
             _ => parser.expected("file_col_num", col_num_token),
@@ -1730,9 +1744,7 @@ fn parse_session_options(
         }
     }
     if options.is_empty() {
-        Err(ParserError::ParserError(
-            "expected at least one option".to_string(),
-        ))
+        parser_err!("expected at least one option", parser.peek_token_ref().span)
     } else {
         Ok(options)
     }

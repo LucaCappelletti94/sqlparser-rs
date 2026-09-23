@@ -1366,7 +1366,7 @@ fn parse_create_table_both_options_and_as_query() {
         r"CREATE TABLE foo (id INT(11)) ENGINE = InnoDB AS SELECT 1 DEFAULT CHARSET = utf8mb3";
     assert!(matches!(
         mysql_and_generic().parse_sql_statements(sql),
-        Err(ParserError::ParserError(_))
+        Err(ParserError::ParserError { .. })
     ));
 }
 
@@ -2204,7 +2204,7 @@ fn parse_insert_as() {
     let sql = r"INSERT INTO `table` (`date`) VALUES ('2024-01-01') AS `alias` ()";
     assert!(matches!(
         mysql_and_generic().parse_sql_statements(sql),
-        Err(ParserError::ParserError(_))
+        Err(ParserError::ParserError { .. })
     ));
 
     let sql = r"INSERT INTO `table` (`id`, `date`) VALUES (1, '2024-01-01') AS `alias` (`mek_id`, `mek_date`)";
@@ -3756,7 +3756,7 @@ fn parse_div_infix_propagates_parse_error() {
     let err = mysql()
         .parse_sql_statements("SELECT 5 DIV")
         .expect_err("expected an error");
-    assert_matches!(err, ParserError::ParserError(_));
+    assert_matches!(err, ParserError::ParserError { .. });
 }
 
 #[test]
@@ -5017,7 +5017,7 @@ fn parse_table_partition_selection() {
     let err = mysql_and_generic()
         .parse_sql_statements("SELECT * FROM employees PARTITION")
         .expect_err("expected an error");
-    assert_matches!(err, ParserError::ParserError(_));
+    assert_matches!(err, ParserError::ParserError { .. });
 }
 
 #[test]
@@ -5057,4 +5057,15 @@ fn parse_is_distinct_from_json_arrow_precedence() {
 fn parse_bitstring_literal_escaping() {
     mysql_and_generic().verified_stmt("SELECT B''''");
     mysql_and_generic().verified_stmt("SELECT B'it''s'");
+}
+
+#[test]
+fn parse_alter_role_unsupported_reports_location() {
+    assert_eq!(
+        mysql()
+            .parse_sql_statements_with_locations("ALTER ROLE r")
+            .unwrap_err()
+            .to_string(),
+        "sql parser error: ALTER ROLE is only support for PostgreSqlDialect, MsSqlDialect at Line: 1, Column: 7"
+    );
 }
