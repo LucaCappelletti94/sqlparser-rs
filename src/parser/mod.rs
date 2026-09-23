@@ -21,10 +21,7 @@ use alloc::{
     vec,
     vec::Vec,
 };
-use core::{
-    fmt::{self, Display},
-    str::FromStr,
-};
+use core::{fmt::Display, str::FromStr};
 #[cfg(feature = "std")]
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -32,7 +29,7 @@ use helpers::attached_token::AttachedToken;
 
 use log::debug;
 
-use recursion::RecursionCounter;
+use recursion::{DepthGuard, RecursionCounter};
 use IsLateral::*;
 use IsOptional::*;
 
@@ -52,22 +49,53 @@ use crate::tokenizer::*;
 use sqlparser::parser::ParserState::ColumnDefinition;
 
 /// Errors produced by the SQL parser.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum ParserError {
-    /// Error originating from the tokenizer with a message.
-    TokenizerError(String),
-    /// Generic parser error with a message.
-    ParserError(String),
+    /// Error originating from the tokenizer.
+    #[error("sql parser error: {message}{}", .span.start)]
+    TokenizerError {
+        /// Description of the error.
+        message: String,
+        /// Where the error was detected, empty when unknown.
+        span: Span,
+    },
+    /// Generic parser error.
+    #[error("sql parser error: {message}{}", .span.start)]
+    ParserError {
+        /// Description of the error.
+        message: String,
+        /// The offending source, empty when unknown.
+        span: Span,
+    },
     /// Raised when a recursion depth limit is exceeded.
-    RecursionLimitExceeded,
+    #[error("sql parser error: recursion limit exceeded{}", .span.start)]
+    RecursionLimitExceeded {
+        /// The token at which the limit was reached, empty when unknown.
+        span: Span,
+    },
+}
+
+impl ParserError {
+    /// The source span the error refers to, empty when unknown.
+    pub fn span(&self) -> Span {
+        match self {
+            ParserError::TokenizerError { span, .. }
+            | ParserError::ParserError { span, .. }
+            | ParserError::RecursionLimitExceeded { span } => *span,
+        }
+    }
 }
 
 // Use `Parser::expected` instead, if possible
 macro_rules! parser_err {
-    ($MSG:expr, $loc:expr) => {
-        Err(ParserError::ParserError(format!("{}{}", $MSG, $loc)))
+    ($MSG:expr, $span:expr) => {
+        Err(ParserError::ParserError {
+            message: ::alloc::string::ToString::to_string(&$MSG),
+            span: $span,
+        })
     };
 }
+pub(crate) use parser_err;
 
 mod alter;
 mod merge;
@@ -79,8 +107,6 @@ mod merge;
 mod recursion {
     use alloc::rc::Rc;
     use core::cell::Cell;
-
-    use super::ParserError;
 
     /// Tracks remaining recursion depth. This value is decremented on
     /// each call to [`RecursionCounter::try_decrease()`], when it reaches 0 an error will
@@ -107,18 +133,18 @@ mod recursion {
 
         /// Decreases the remaining depth by 1.
         ///
-        /// Returns [`Err`] if the remaining depth falls to 0.
+        /// Returns [`None`] if the remaining depth is already 0.
         ///
         /// Returns a [`DepthGuard`] which will adds 1 to the
         /// remaining depth upon drop;
-        pub fn try_decrease(&self) -> Result<DepthGuard, ParserError> {
+        pub fn try_decrease(&self) -> Option<DepthGuard> {
             let old_value = self.remaining_depth.get();
             // ran out of space
             if old_value == 0 {
-                Err(ParserError::RecursionLimitExceeded)
+                None
             } else {
                 self.remaining_depth.set(old_value - 1);
-                Ok(DepthGuard::new(Rc::clone(&self.remaining_depth)))
+                Some(DepthGuard::new(Rc::clone(&self.remaining_depth)))
             }
         }
     }
@@ -171,37 +197,15 @@ pub enum WildcardExpr {
 
 impl From<TokenizerError> for ParserError {
     fn from(e: TokenizerError) -> Self {
-        ParserError::TokenizerError(e.to_string())
+        ParserError::TokenizerError {
+            message: e.message,
+            span: Span::new(e.location, e.location),
+        }
     }
 }
-
-impl fmt::Display for ParserError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "sql parser error: {}",
-            match self {
-                ParserError::TokenizerError(s) => s,
-                ParserError::ParserError(s) => s,
-                ParserError::RecursionLimitExceeded => "recursion limit exceeded",
-            }
-        )
-    }
-}
-
-impl core::error::Error for ParserError {}
 
 // By default, allow expressions up to this deep before erroring
 const DEFAULT_REMAINING_DEPTH: usize = 50;
-
-// A constant EOF token that can be referenced.
-const EOF_TOKEN: TokenWithSpan = TokenWithSpan {
-    token: Token::EOF,
-    span: Span {
-        start: Location { line: 0, column: 0 },
-        end: Location { line: 0, column: 0 },
-    },
-};
 
 /// Composite types declarations using angle brackets syntax can be arbitrary
 /// nested such that the following declaration is possible:
@@ -313,7 +317,7 @@ enum ParserState {
 /// * The "previous" token is the token at `index - 2`
 ///
 /// If `index` is equal to the length of the token stream, the 'next' token is
-/// [`Token::EOF`].
+/// [`Token::EOF`], located right after the last non-whitespace token.
 ///
 /// For example, the SQL string "SELECT * FROM foo" will be tokenized into
 /// following tokens:
@@ -333,6 +337,8 @@ enum ParserState {
 pub struct Parser<'a> {
     /// The tokens
     tokens: Vec<TokenWithSpan>,
+    /// Returned when reading past the end of [`Parser::tokens`].
+    eof_token: TokenWithSpan,
     /// The index of the first unprocessed token in [`Parser::tokens`].
     index: usize,
     /// The current state of the parser.
@@ -366,14 +372,14 @@ pub struct Parser<'a> {
 /// memoization, so the caches hold no strings.
 #[derive(Debug, Clone, Copy)]
 enum ExprPrefixError {
-    RecursionLimitExceeded,
+    RecursionLimitExceeded(Span),
     Err,
 }
 
 impl From<&ParserError> for ExprPrefixError {
     fn from(e: &ParserError) -> Self {
         match e {
-            ParserError::RecursionLimitExceeded => Self::RecursionLimitExceeded,
+            ParserError::RecursionLimitExceeded { span } => Self::RecursionLimitExceeded(*span),
             _ => Self::Err,
         }
     }
@@ -398,6 +404,7 @@ impl<'a> Parser<'a> {
     pub fn new(dialect: &'a dyn Dialect) -> Self {
         Self {
             tokens: vec![],
+            eof_token: TokenWithSpan::new_eof(),
             index: 0,
             state: ParserState::Normal,
             dialect,
@@ -425,7 +432,7 @@ impl<'a> Parser<'a> {
     ///   .with_recursion_limit(1)
     ///   .try_with_sql("SELECT * FROM foo WHERE (a OR (b OR (c OR d)))")?
     ///   .parse_statements();
-    ///   assert_eq!(result, Err(ParserError::RecursionLimitExceeded));
+    ///   assert!(matches!(result, Err(ParserError::RecursionLimitExceeded { .. })));
     /// # Ok(())
     /// # }
     /// ```
@@ -439,6 +446,16 @@ impl<'a> Parser<'a> {
     pub fn with_recursion_limit(mut self, recursion_limit: usize) -> Self {
         self.recursion_counter = RecursionCounter::new(recursion_limit);
         self
+    }
+
+    /// Enters one level of recursion, failing at the next token once the
+    /// limit set by [`Parser::with_recursion_limit`] is reached.
+    fn recursion_guard(&self) -> Result<DepthGuard, ParserError> {
+        self.recursion_counter
+            .try_decrease()
+            .ok_or_else(|| ParserError::RecursionLimitExceeded {
+                span: self.peek_token_ref().span,
+            })
     }
 
     /// Specify additional parser options
@@ -470,6 +487,13 @@ impl<'a> Parser<'a> {
 
     /// Reset this parser to parse the specified token stream
     pub fn with_tokens_with_locations(mut self, tokens: Vec<TokenWithSpan>) -> Self {
+        let end = tokens
+            .iter()
+            .rfind(|t| !matches!(t.token, Token::Whitespace(_)))
+            .map(|t| t.span.end)
+            .or_else(|| tokens.first().map(|t| t.span.start))
+            .unwrap_or_else(Location::empty);
+        self.eof_token = TokenWithSpan::new(Token::EOF, Span::new(end, end));
         self.tokens = tokens;
         self.index = 0;
         self.failed_prefix_positions.clear();
@@ -503,7 +527,12 @@ impl<'a> Parser<'a> {
         let tokens = Tokenizer::new(self.dialect, sql)
             .with_unescape(self.options.unescape)
             .tokenize_with_location()?;
-        Ok(self.with_tokens_with_locations(tokens))
+        let mut parser = self.with_tokens_with_locations(tokens);
+        if parser.tokens.is_empty() {
+            let start = Location::new(1, 1);
+            parser.eof_token.span = Span::new(start, start);
+        }
+        Ok(parser)
     }
 
     /// Parse potentially multiple statements
@@ -616,7 +645,7 @@ impl<'a> Parser<'a> {
     /// Parse a single top-level statement (such as SELECT, INSERT, CREATE, etc.),
     /// stopping before the statement separator, if any.
     pub fn parse_statement(&mut self) -> Result<Statement, ParserError> {
-        let _guard = self.recursion_counter.try_decrease()?;
+        let _guard = self.recursion_guard()?;
 
         // allow the dialect to override statement parsing
         if let Some(statement) = self.dialect.parse_statement(self) {
@@ -1009,10 +1038,7 @@ impl<'a> Parser<'a> {
         let mut export = false;
 
         if !dialect_of!(self is MySqlDialect | GenericDialect) {
-            return parser_err!(
-                "Unsupported statement FLUSH",
-                self.peek_token_ref().span.start
-            );
+            return parser_err!("Unsupported statement FLUSH", self.peek_token_ref().span);
         }
 
         let location = if self.parse_keyword(Keyword::NO_WRITE_TO_BINLOG) {
@@ -1342,9 +1368,10 @@ impl<'a> Parser<'a> {
                     Token::Word(w) => w.into_ident(next_token.span),
                     Token::SingleQuotedString(s) => Ident::with_quote('\'', s),
                     _ => {
-                        return Err(ParserError::ParserError(
-                            "Internal parser error: unexpected token type".to_string(),
-                        ))
+                        return parser_err!(
+                            "Internal parser error: unexpected token type",
+                            next_token.span
+                        )
                     }
                 }];
 
@@ -1422,7 +1449,7 @@ impl<'a> Parser<'a> {
     /// Parse tokens until the precedence changes.
     #[cfg_attr(feature = "recursive-protection", recursive::recursive)]
     pub fn parse_subexpr(&mut self, precedence: u8) -> Result<Expr, ParserError> {
-        let _guard = self.recursion_counter.try_decrease()?;
+        let _guard = self.recursion_guard()?;
         debug!("parsing expr");
         let mut expr = self.parse_prefix()?;
 
@@ -1783,7 +1810,9 @@ impl<'a> Parser<'a> {
         found: &TokenWithSpan,
     ) -> Result<T, ParserError> {
         match cached {
-            ExprPrefixError::RecursionLimitExceeded => Err(ParserError::RecursionLimitExceeded),
+            ExprPrefixError::RecursionLimitExceeded(span) => {
+                Err(ParserError::RecursionLimitExceeded { span })
+            }
             ExprPrefixError::Err => self.expected_ref("an expression", found),
         }
     }
@@ -1805,7 +1834,7 @@ impl<'a> Parser<'a> {
         // Note also that naively `SELECT date` looks like a syntax error because the `date` type
         // name is not followed by a string literal, but in fact in PostgreSQL it is a valid
         // expression that should parse as the column name "date".
-        let loc = self.peek_token_ref().span.start;
+        let loc = self.peek_token_ref().span;
         let opt_expr = self.maybe_parse(|parser| {
             match parser.parse_data_type()? {
                 DataType::Interval { .. } => parser.parse_interval(),
@@ -1944,9 +1973,10 @@ impl<'a> Parser<'a> {
                     Token::PGCubeRoot => UnaryOperator::PGCubeRoot,
                     Token::AtSign => UnaryOperator::PGAbs,
                     _ => {
-                        return Err(ParserError::ParserError(
-                            "Internal parser error: unexpected unary operator token".to_string(),
-                        ))
+                        return parser_err!(
+                            "Internal parser error: unexpected unary operator token",
+                            self.get_current_token().span
+                        )
                     }
                 };
                 Ok(Expr::UnaryOp {
@@ -1974,9 +2004,10 @@ impl<'a> Parser<'a> {
                     Token::QuestionMarkDash => UnaryOperator::QuestionDash,
                     Token::QuestionPipe => UnaryOperator::QuestionPipe,
                     _ => {
-                        return Err(ParserError::ParserError(format!(
-                            "Unexpected token in unary operator parsing: {tok:?}"
-                        )))
+                        return parser_err!(
+                            format!("Unexpected token in unary operator parsing: {tok:?}"),
+                            self.get_current_token().span
+                        )
                     }
                 };
                 Ok(Expr::UnaryOp {
@@ -2017,34 +2048,35 @@ impl<'a> Parser<'a> {
                 Ok(Expr::Value(self.parse_value()?))
             }
             Token::LParen => {
-                let expr =
-                    if let Some(expr) = self.try_parse_expr_sub_query()? {
-                        expr
-                    } else if let Some(lambda) = self.try_parse_lambda()? {
-                        return Ok(lambda);
-                    } else {
-                        // Parentheses in expressions switch to "normal" parsing state.
-                        // This matters for dialects (SQLite, DuckDB) where `NOT NULL` can
-                        // be an alias for `IS NOT NULL`. In column definitions like:
-                        //
-                        //   CREATE TABLE t (c INT DEFAULT (42 NOT NULL) NOT NULL)
-                        //
-                        // The `(42 NOT NULL)` is an expression with parens, so it parses
-                        // as `IsNotNull(42)`. The trailing `NOT NULL` is outside those
-                        // expression parens (the outer parens are CREATE TABLE syntax),
-                        // so it remains a column constraint.
-                        let exprs = self.with_state(ParserState::Normal, |p| {
-                            p.parse_comma_separated(Parser::parse_expr)
-                        })?;
-                        match exprs.len() {
-                            0 => return Err(ParserError::ParserError(
-                                "Internal parser error: parse_comma_separated returned empty list"
-                                    .to_string(),
-                            )),
-                            1 => Expr::Nested(Box::new(exprs.into_iter().next().unwrap())),
-                            _ => Expr::Tuple(exprs),
+                let expr = if let Some(expr) = self.try_parse_expr_sub_query()? {
+                    expr
+                } else if let Some(lambda) = self.try_parse_lambda()? {
+                    return Ok(lambda);
+                } else {
+                    // Parentheses in expressions switch to "normal" parsing state.
+                    // This matters for dialects (SQLite, DuckDB) where `NOT NULL` can
+                    // be an alias for `IS NOT NULL`. In column definitions like:
+                    //
+                    //   CREATE TABLE t (c INT DEFAULT (42 NOT NULL) NOT NULL)
+                    //
+                    // The `(42 NOT NULL)` is an expression with parens, so it parses
+                    // as `IsNotNull(42)`. The trailing `NOT NULL` is outside those
+                    // expression parens (the outer parens are CREATE TABLE syntax),
+                    // so it remains a column constraint.
+                    let exprs = self.with_state(ParserState::Normal, |p| {
+                        p.parse_comma_separated(Parser::parse_expr)
+                    })?;
+                    match exprs.len() {
+                        0 => {
+                            return parser_err!(
+                                "Internal parser error: parse_comma_separated returned empty list",
+                                self.peek_token_ref().span
+                            )
                         }
-                    };
+                        1 => Expr::Nested(Box::new(exprs.into_iter().next().unwrap())),
+                        _ => Expr::Tuple(exprs),
+                    }
+                };
                 self.expect_token(&Token::RParen)?;
                 Ok(expr)
             }
@@ -2252,7 +2284,7 @@ impl<'a> Parser<'a> {
                 .all(|access| matches!(access, AccessExpr::Dot(Expr::Identifier(_))))
         {
             let Some(AccessExpr::Dot(Expr::Function(mut func))) = access_chain.pop() else {
-                return parser_err!("expected function expression", root.span().start);
+                return parser_err!("expected function expression", root.span());
             };
 
             let compound_func_name = [root]
@@ -2284,14 +2316,14 @@ impl<'a> Parser<'a> {
             )
         {
             let Some(AccessExpr::Dot(Expr::OuterJoin(inner_expr))) = access_chain.pop() else {
-                return parser_err!("expected (+) expression", root.span().start);
+                return parser_err!("expected (+) expression", root.span());
             };
 
             if !Self::is_all_ident(&root, &[]) {
-                return parser_err!("column identifier before (+)", root.span().start);
+                return parser_err!("column identifier before (+)", root.span());
             };
 
-            let token_start = root.span().start;
+            let token_start = root.span();
             let mut idents = Self::exprs_to_idents(root, vec![])?;
             match *inner_expr {
                 Expr::CompoundIdentifier(suffix) => idents.extend(suffix),
@@ -2338,18 +2370,12 @@ impl<'a> Parser<'a> {
                 if let AccessExpr::Dot(Expr::Identifier(ident)) = x {
                     idents.push(ident);
                 } else {
-                    return parser_err!(
-                        format!("Expected identifier, found: {}", x),
-                        x.span().start
-                    );
+                    return parser_err!(format!("Expected identifier, found: {}", x), x.span());
                 }
             }
             Ok(idents)
         } else {
-            parser_err!(
-                format!("Expected identifier, found: {}", root),
-                root.span().start
-            )
+            parser_err!(format!("Expected identifier, found: {}", root), root.span())
         }
     }
 
@@ -2971,9 +2997,7 @@ impl<'a> Parser<'a> {
         {
             ExtractSyntax::Comma
         } else {
-            return Err(ParserError::ParserError(
-                "Expected 'FROM' or ','".to_string(),
-            ));
+            return self.expected_ref("'FROM' or ','", self.peek_token_ref());
         };
 
         let expr = self.parse_expr()?;
@@ -2999,9 +3023,7 @@ impl<'a> Parser<'a> {
             if matches!(v.value, Value::Number(_, _)) {
                 CeilFloorKind::Scale(v)
             } else {
-                return Err(ParserError::ParserError(
-                    "Scale field can only be of number type".to_string(),
-                ));
+                return parser_err!("Scale field can only be of number type", v.span);
             }
         } else {
             CeilFloorKind::DateTimeField(DateTimeField::NoDateTime)
@@ -3421,7 +3443,7 @@ impl<'a> Parser<'a> {
     /// Note that we do not currently attempt to parse the quoted value.
     #[cfg_attr(feature = "recursive-protection", recursive::recursive)]
     pub fn parse_interval(&mut self) -> Result<Expr, ParserError> {
-        let _guard = self.recursion_counter.try_decrease()?;
+        let _guard = self.recursion_guard()?;
 
         // The SQL standard allows an optional sign before the value string, but
         // it is not clear if any implementations support that syntax, so we
@@ -3450,7 +3472,7 @@ impl<'a> Parser<'a> {
         } else if self.dialect.require_interval_qualifier() {
             return parser_err!(
                 "INTERVAL requires a unit after the literal value",
-                self.peek_token_ref().span.start
+                self.peek_token_ref().span
             );
         } else {
             None
@@ -3549,10 +3571,7 @@ impl<'a> Parser<'a> {
         let (fields, trailing_bracket) =
             self.parse_struct_type_def(Self::parse_struct_field_def)?;
         if trailing_bracket.0 {
-            return parser_err!(
-                "unmatched > in STRUCT literal",
-                self.peek_token_ref().span.start
-            );
+            return parser_err!("unmatched > in STRUCT literal", self.peek_token_ref().span);
         }
 
         // Parse the struct values `(expr1 [, ... ])`
@@ -3583,7 +3602,7 @@ impl<'a> Parser<'a> {
             if typed_syntax {
                 return parser_err!("Typed syntax does not allow AS", {
                     self.prev_token();
-                    self.peek_token_ref().span.start
+                    self.peek_token_ref().span
                 });
             }
             let field_name = self.parse_identifier()?;
@@ -4079,7 +4098,7 @@ impl<'a> Parser<'a> {
                         format!(
                         "Expected one of [=, >, <, =>, =<, !=, ~, ~*, !~, !~*, ~~, ~~*, !~~, !~~*] as comparison operator, found: {op}"
                     ),
-                        span.start
+                        span
                     );
                 };
 
@@ -4095,9 +4114,7 @@ impl<'a> Parser<'a> {
                         right: Box::new(right),
                         is_some: keyword == Keyword::SOME,
                     },
-                    unexpected_keyword => return Err(ParserError::ParserError(
-                        format!("Internal parser error: expected any of {{ALL, ANY, SOME}}, got {unexpected_keyword:?}"),
-                    )),
+                    unexpected_keyword => return parser_err!(format!("Internal parser error: expected any of {{ALL, ANY, SOME}}, got {unexpected_keyword:?}"), self.get_current_token().span),
                 })
             } else {
                 Ok(Expr::BinaryOp {
@@ -4246,7 +4263,7 @@ impl<'a> Parser<'a> {
                 // Can only happen if `get_next_precedence` got out of sync with this function
                 _ => parser_err!(
                     format!("No infix parser for token {:?}", tok.token),
-                    tok.span.start
+                    tok.span
                 ),
             }
         } else if Token::DoubleColon == *tok {
@@ -4270,7 +4287,7 @@ impl<'a> Parser<'a> {
             // Can only happen if `get_next_precedence` got out of sync with this function
             parser_err!(
                 format!("No infix parser for token {:?}", tok.token),
-                tok.span.start
+                tok.span
             )
         }
     }
@@ -4507,7 +4524,7 @@ impl<'a> Parser<'a> {
                 list,
                 negated,
             }),
-            Err(ParserError::RecursionLimitExceeded) => Err(ParserError::RecursionLimitExceeded),
+            Err(e @ ParserError::RecursionLimitExceeded { .. }) => Err(e),
             Err(e) => match missing_rparen {
                 Some(index) if self.index <= index => {
                     self.index = index;
@@ -4551,7 +4568,7 @@ impl<'a> Parser<'a> {
     /// Return the token at the given location, or EOF if the index is beyond
     /// the length of the current set of tokens.
     pub fn token_at(&self, index: usize) -> &TokenWithSpan {
-        self.tokens.get(index).unwrap_or(&EOF_TOKEN)
+        self.tokens.get(index).unwrap_or(&self.eof_token)
     }
 
     /// Return the first non-whitespace token that has not yet been processed
@@ -4634,7 +4651,7 @@ impl<'a> Parser<'a> {
             {
                 continue;
             }
-            break token.unwrap_or(&EOF_TOKEN);
+            break token.unwrap_or(&self.eof_token);
         })
     }
 
@@ -4655,7 +4672,7 @@ impl<'a> Parser<'a> {
                 }) => continue,
                 non_whitespace => {
                     if n == 0 {
-                        return non_whitespace.unwrap_or(&EOF_TOKEN);
+                        return non_whitespace.unwrap_or(&self.eof_token);
                     }
                     n -= 1;
                 }
@@ -4682,7 +4699,7 @@ impl<'a> Parser<'a> {
 
     /// Return nth token, possibly whitespace, that has not yet been processed.
     fn peek_nth_token_no_skip_ref(&self, n: usize) -> &TokenWithSpan {
-        self.tokens.get(self.index + n).unwrap_or(&EOF_TOKEN)
+        self.tokens.get(self.index + n).unwrap_or(&self.eof_token)
     }
 
     /// Return true if the next tokens exactly `expected`
@@ -4778,27 +4795,18 @@ impl<'a> Parser<'a> {
 
     /// Report `found` was encountered instead of `expected`
     pub fn expected<T>(&self, expected: &str, found: TokenWithSpan) -> Result<T, ParserError> {
-        parser_err!(
-            format!("Expected: {expected}, found: {found}"),
-            found.span.start
-        )
+        parser_err!(format!("Expected: {expected}, found: {found}"), found.span)
     }
 
     /// report `found` was encountered instead of `expected`
     pub fn expected_ref<T>(&self, expected: &str, found: &TokenWithSpan) -> Result<T, ParserError> {
-        parser_err!(
-            format!("Expected: {expected}, found: {found}"),
-            found.span.start
-        )
+        parser_err!(format!("Expected: {expected}, found: {found}"), found.span)
     }
 
     /// Report that the token at `index` was found instead of `expected`.
     pub fn expected_at<T>(&self, expected: &str, index: usize) -> Result<T, ParserError> {
-        let found = self.tokens.get(index).unwrap_or(&EOF_TOKEN);
-        parser_err!(
-            format!("Expected: {expected}, found: {found}"),
-            found.span.start
-        )
+        let found = self.tokens.get(index).unwrap_or(&self.eof_token);
+        parser_err!(format!("Expected: {expected}, found: {found}"), found.span)
     }
 
     /// If the current token is the `expected` keyword, consume it and returns
@@ -5003,15 +5011,16 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn parse<T: FromStr>(s: String, loc: Location) -> Result<T, ParserError>
+    fn parse<T: FromStr>(s: String, span: Span) -> Result<T, ParserError>
     where
         <T as FromStr>::Err: Display,
     {
-        s.parse::<T>().map_err(|e| {
-            ParserError::ParserError(format!(
-                "Could not parse '{s}' as {}: {e}{loc}",
+        s.parse::<T>().map_err(|e| ParserError::ParserError {
+            message: format!(
+                "Could not parse '{s}' as {}: {e}",
                 core::any::type_name::<T>()
-            ))
+            ),
+            span,
         })
     }
 
@@ -5256,7 +5265,7 @@ impl<'a> Parser<'a> {
     {
         match self.try_parse(f) {
             Ok(t) => Ok(Some(t)),
-            Err(ParserError::RecursionLimitExceeded) => Err(ParserError::RecursionLimitExceeded),
+            Err(e @ ParserError::RecursionLimitExceeded { .. }) => Err(e),
             _ => Ok(None),
         }
     }
@@ -5280,7 +5289,7 @@ impl<'a> Parser<'a> {
     /// Parse either `ALL`, `DISTINCT` or `DISTINCT ON (...)`. Returns [`None`] if `ALL` is parsed
     /// and results in a [`ParserError`] if both `ALL` and `DISTINCT` are found.
     pub fn parse_all_or_distinct(&mut self) -> Result<Option<Distinct>, ParserError> {
-        let loc = self.peek_token_ref().span.start;
+        let loc = self.peek_token_ref().span;
         let distinct = match self.parse_one_of_keywords(&[Keyword::ALL, Keyword::DISTINCT]) {
             Some(Keyword::ALL) => {
                 if self.peek_keyword(Keyword::DISTINCT) {
@@ -5318,7 +5327,7 @@ impl<'a> Parser<'a> {
 
     /// Parse a SQL CREATE statement
     pub fn parse_create(&mut self) -> Result<Statement, ParserError> {
-        let modifier_loc = self.peek_token_ref().span.start;
+        let modifier_span = self.peek_token_ref().span;
         let or_replace = self.parse_keywords(&[Keyword::OR, Keyword::REPLACE]);
         let or_alter = self.parse_keywords(&[Keyword::OR, Keyword::ALTER]);
         let multiset = self.maybe_parse_multiset();
@@ -5438,7 +5447,7 @@ impl<'a> Parser<'a> {
             {
                 return parser_err!(
                     "CREATE FOREIGN TABLE does not accept this modifier",
-                    modifier_loc
+                    modifier_span
                 );
             }
             self.parse_create_foreign_table().map(Into::into)
@@ -5458,9 +5467,9 @@ impl<'a> Parser<'a> {
             Keyword::CONFIGURATION => Ok(TextSearchObjectType::Configuration),
             Keyword::TEMPLATE => Ok(TextSearchObjectType::Template),
             Keyword::PARSER => Ok(TextSearchObjectType::Parser),
-            unexpected_keyword => Err(ParserError::ParserError(format!(
+            unexpected_keyword => parser_err!(format!(
                 "Internal parser error: expected any of {{DICTIONARY, CONFIGURATION, TEMPLATE, PARSER}}, got {unexpected_keyword:?}"
-            ))),
+            ), self.get_current_token().span),
         }
     }
 
@@ -5964,28 +5973,31 @@ impl<'a> Parser<'a> {
         let mut body = Body::default();
         let mut set_params: Vec<FunctionDefinitionSetParam> = Vec::new();
         loop {
-            fn ensure_not_set<T>(field: &Option<T>, name: &str) -> Result<(), ParserError> {
+            fn ensure_not_set<T>(
+                field: &Option<T>,
+                name: &str,
+                span: Span,
+            ) -> Result<(), ParserError> {
                 if field.is_some() {
-                    return Err(ParserError::ParserError(format!(
-                        "{name} specified more than once",
-                    )));
+                    return parser_err!(format!("{name} specified more than once"), span);
                 }
                 Ok(())
             }
+            let clause = self.peek_token_ref().span;
             if self.parse_keyword(Keyword::AS) {
-                ensure_not_set(&body.function_body, "AS")?;
+                ensure_not_set(&body.function_body, "AS", clause)?;
                 body.function_body = Some(self.parse_create_function_body_string()?);
             } else if self.parse_keyword(Keyword::LANGUAGE) {
-                ensure_not_set(&body.language, "LANGUAGE")?;
+                ensure_not_set(&body.language, "LANGUAGE", clause)?;
                 body.language = Some(self.parse_identifier()?);
             } else if self.parse_keyword(Keyword::IMMUTABLE) {
-                ensure_not_set(&body.behavior, "IMMUTABLE | STABLE | VOLATILE")?;
+                ensure_not_set(&body.behavior, "IMMUTABLE | STABLE | VOLATILE", clause)?;
                 body.behavior = Some(FunctionBehavior::Immutable);
             } else if self.parse_keyword(Keyword::STABLE) {
-                ensure_not_set(&body.behavior, "IMMUTABLE | STABLE | VOLATILE")?;
+                ensure_not_set(&body.behavior, "IMMUTABLE | STABLE | VOLATILE", clause)?;
                 body.behavior = Some(FunctionBehavior::Stable);
             } else if self.parse_keyword(Keyword::VOLATILE) {
-                ensure_not_set(&body.behavior, "IMMUTABLE | STABLE | VOLATILE")?;
+                ensure_not_set(&body.behavior, "IMMUTABLE | STABLE | VOLATILE", clause)?;
                 body.behavior = Some(FunctionBehavior::Volatile);
             } else if self.parse_keywords(&[
                 Keyword::CALLED,
@@ -5996,6 +6008,7 @@ impl<'a> Parser<'a> {
                 ensure_not_set(
                     &body.called_on_null,
                     "CALLED ON NULL INPUT | RETURNS NULL ON NULL INPUT | STRICT",
+                    clause,
                 )?;
                 body.called_on_null = Some(FunctionCalledOnNull::CalledOnNullInput);
             } else if self.parse_keywords(&[
@@ -6008,16 +6021,22 @@ impl<'a> Parser<'a> {
                 ensure_not_set(
                     &body.called_on_null,
                     "CALLED ON NULL INPUT | RETURNS NULL ON NULL INPUT | STRICT",
+                    clause,
                 )?;
                 body.called_on_null = Some(FunctionCalledOnNull::ReturnsNullOnNullInput);
             } else if self.parse_keyword(Keyword::STRICT) {
                 ensure_not_set(
                     &body.called_on_null,
                     "CALLED ON NULL INPUT | RETURNS NULL ON NULL INPUT | STRICT",
+                    clause,
                 )?;
                 body.called_on_null = Some(FunctionCalledOnNull::Strict);
             } else if self.parse_keyword(Keyword::PARALLEL) {
-                ensure_not_set(&body.parallel, "PARALLEL { UNSAFE | RESTRICTED | SAFE }")?;
+                ensure_not_set(
+                    &body.parallel,
+                    "PARALLEL { UNSAFE | RESTRICTED | SAFE }",
+                    clause,
+                )?;
                 if self.parse_keyword(Keyword::UNSAFE) {
                     body.parallel = Some(FunctionParallel::Unsafe);
                 } else if self.parse_keyword(Keyword::RESTRICTED) {
@@ -6029,7 +6048,7 @@ impl<'a> Parser<'a> {
                         .expected_ref("one of UNSAFE | RESTRICTED | SAFE", self.peek_token_ref());
                 }
             } else if self.parse_keyword(Keyword::SECURITY) {
-                ensure_not_set(&body.security, "SECURITY { DEFINER | INVOKER }")?;
+                ensure_not_set(&body.security, "SECURITY { DEFINER | INVOKER }", clause)?;
                 if self.parse_keyword(Keyword::DEFINER) {
                     body.security = Some(FunctionSecurity::Definer);
                 } else if self.parse_keyword(Keyword::INVOKER) {
@@ -6054,7 +6073,7 @@ impl<'a> Parser<'a> {
                 };
                 set_params.push(FunctionDefinitionSetParam { name, value });
             } else if self.parse_keyword(Keyword::RETURN) {
-                ensure_not_set(&body.function_body, "RETURN")?;
+                ensure_not_set(&body.function_body, "RETURN", clause)?;
                 body.function_body = Some(CreateFunctionBody::Return(self.parse_expr()?));
             } else {
                 break;
@@ -6224,7 +6243,7 @@ impl<'a> Parser<'a> {
                 }
                 _ => parser_err!(
                     "Expected table column definitions after TABLE keyword",
-                    p.peek_token_ref().span.start
+                    p.peek_token_ref().span
                 )?,
             };
 
@@ -6261,11 +6280,11 @@ impl<'a> Parser<'a> {
             } else {
                 parser_err!(
                     "Expected a subquery (or bare SELECT statement) after RETURN",
-                    self.peek_token_ref().span.start
+                    self.peek_token_ref().span
                 )?
             }
         } else {
-            parser_err!("Unparsable function body", self.peek_token_ref().span.start)?
+            parser_err!("Unparsable function body", self.peek_token_ref().span)?
         };
 
         Ok(CreateFunction {
@@ -6353,7 +6372,7 @@ impl<'a> Parser<'a> {
                 // This dummy error is ignored in `maybe_parse`
                 parser_err!(
                     "The DEFAULT keyword is not a type",
-                    parser.peek_token_ref().span.start
+                    parser.peek_token_ref().span
                 )
             } else {
                 parser.parse_data_type()
@@ -6417,7 +6436,7 @@ impl<'a> Parser<'a> {
                 // Dummy error ignored by maybe_parse
                 parser_err!(
                     "The current token cannot start an aggregate argument type",
-                    parser.peek_token_ref().span.start
+                    parser.peek_token_ref().span
                 )
             } else {
                 parser.parse_data_type()
@@ -6470,9 +6489,7 @@ impl<'a> Parser<'a> {
         let option = match self.parse_one_of_keywords(&[Keyword::CASCADE, Keyword::RESTRICT]) {
             Some(Keyword::CASCADE) => Some(ReferentialAction::Cascade),
             Some(Keyword::RESTRICT) => Some(ReferentialAction::Restrict),
-            Some(unexpected_keyword) => return Err(ParserError::ParserError(
-                format!("Internal parser error: expected any of {{CASCADE, RESTRICT}}, got {unexpected_keyword:?}"),
-            )),
+            Some(unexpected_keyword) => return parser_err!(format!("Internal parser error: expected any of {{CASCADE, RESTRICT}}, got {unexpected_keyword:?}"), self.get_current_token().span),
             None => None,
         };
         Ok(DropTrigger {
@@ -6525,9 +6542,7 @@ impl<'a> Parser<'a> {
                 match self.expect_one_of_keywords(&[Keyword::ROW, Keyword::STATEMENT])? {
                     Keyword::ROW => TriggerObject::Row,
                     Keyword::STATEMENT => TriggerObject::Statement,
-                    unexpected_keyword => return Err(ParserError::ParserError(
-                        format!("Internal parser error: unexpected keyword `{unexpected_keyword}` in ROW/STATEMENT"),
-                    )),
+                    unexpected_keyword => return parser_err!(format!("Internal parser error: unexpected keyword `{unexpected_keyword}` in ROW/STATEMENT"), self.get_current_token().span),
                 };
 
             Some(if include_each {
@@ -6590,9 +6605,7 @@ impl<'a> Parser<'a> {
                 Keyword::INSTEAD => self
                     .expect_keyword_is(Keyword::OF)
                     .map(|_| TriggerPeriod::InsteadOf)?,
-                unexpected_keyword => return Err(ParserError::ParserError(
-                    format!("Internal parser error: unexpected keyword `{unexpected_keyword}` in trigger period"),
-                )),
+                unexpected_keyword => return parser_err!(format!("Internal parser error: unexpected keyword `{unexpected_keyword}` in trigger period"), self.get_current_token().span),
             },
         )
     }
@@ -6617,9 +6630,7 @@ impl<'a> Parser<'a> {
                 }
                 Keyword::DELETE => TriggerEvent::Delete,
                 Keyword::TRUNCATE => TriggerEvent::Truncate,
-                unexpected_keyword => return Err(ParserError::ParserError(
-                    format!("Internal parser error: unexpected keyword `{unexpected_keyword}` in trigger event"),
-                )),
+                unexpected_keyword => return parser_err!(format!("Internal parser error: unexpected keyword `{unexpected_keyword}` in trigger event"), self.get_current_token().span),
             },
         )
     }
@@ -6655,9 +6666,7 @@ impl<'a> Parser<'a> {
             {
                 Keyword::FUNCTION => TriggerExecBodyType::Function,
                 Keyword::PROCEDURE => TriggerExecBodyType::Procedure,
-                unexpected_keyword => return Err(ParserError::ParserError(
-                    format!("Internal parser error: unexpected keyword `{unexpected_keyword}` in trigger exec body"),
-                )),
+                unexpected_keyword => return parser_err!(format!("Internal parser error: unexpected keyword `{unexpected_keyword}` in trigger exec body"), self.get_current_token().span),
             },
             func_desc: self.parse_function_desc()?,
         })
@@ -7057,10 +7066,7 @@ impl<'a> Parser<'a> {
         let mut admin = vec![];
 
         while let Some(keyword) = self.parse_one_of_keywords(&optional_keywords) {
-            let loc = self
-                .tokens
-                .get(self.index - 1)
-                .map_or(Location { line: 0, column: 0 }, |t| t.span.start);
+            let loc = self.get_current_token().span;
             match keyword {
                 Keyword::AUTHORIZATION => {
                     if authorization_owner.is_some() {
@@ -7227,21 +7233,31 @@ impl<'a> Parser<'a> {
 
     /// Parse an `OWNER` clause.
     pub fn parse_owner(&mut self) -> Result<Owner, ParserError> {
-        let owner = match self.parse_one_of_keywords(&[Keyword::CURRENT_USER, Keyword::CURRENT_ROLE, Keyword::SESSION_USER]) {
+        let owner = match self.parse_one_of_keywords(&[
+            Keyword::CURRENT_USER,
+            Keyword::CURRENT_ROLE,
+            Keyword::SESSION_USER,
+        ]) {
             Some(Keyword::CURRENT_USER) => Owner::CurrentUser,
             Some(Keyword::CURRENT_ROLE) => Owner::CurrentRole,
             Some(Keyword::SESSION_USER) => Owner::SessionUser,
-            Some(unexpected_keyword) => return Err(ParserError::ParserError(
-                format!("Internal parser error: unexpected keyword `{unexpected_keyword}` in owner"),
-            )),
-            None => {
-                match self.parse_identifier() {
-                    Ok(ident) => Owner::Ident(ident),
-                    Err(e) => {
-                        return Err(ParserError::ParserError(format!("Expected: CURRENT_USER, CURRENT_ROLE, SESSION_USER or identifier after OWNER TO. {e}")))
-                    }
-                }
+            Some(unexpected_keyword) => {
+                return parser_err!(
+                    format!(
+                        "Internal parser error: unexpected keyword `{unexpected_keyword}` in owner"
+                    ),
+                    self.get_current_token().span
+                )
             }
+            None => match self.maybe_parse(|parser| parser.parse_identifier())? {
+                Some(ident) => Owner::Ident(ident),
+                None => {
+                    return self.expected_ref(
+                        "CURRENT_USER, CURRENT_ROLE, SESSION_USER or identifier after OWNER TO",
+                        self.peek_token_ref(),
+                    )
+                }
+            },
         };
         Ok(owner)
     }
@@ -7295,9 +7311,7 @@ impl<'a> Parser<'a> {
             Some(match keyword {
                 Keyword::PERMISSIVE => CreatePolicyType::Permissive,
                 Keyword::RESTRICTIVE => CreatePolicyType::Restrictive,
-                unexpected_keyword => return Err(ParserError::ParserError(
-                    format!("Internal parser error: unexpected keyword `{unexpected_keyword}` in policy type"),
-                )),
+                unexpected_keyword => return parser_err!(format!("Internal parser error: unexpected keyword `{unexpected_keyword}` in policy type"), self.get_current_token().span),
             })
         } else {
             None
@@ -7317,9 +7331,7 @@ impl<'a> Parser<'a> {
                 Keyword::INSERT => CreatePolicyCommand::Insert,
                 Keyword::UPDATE => CreatePolicyCommand::Update,
                 Keyword::DELETE => CreatePolicyCommand::Delete,
-                unexpected_keyword => return Err(ParserError::ParserError(
-                    format!("Internal parser error: unexpected keyword `{unexpected_keyword}` in policy command"),
-                )),
+                unexpected_keyword => return parser_err!(format!("Internal parser error: unexpected keyword `{unexpected_keyword}` in policy command"), self.get_current_token().span),
             })
         } else {
             None
@@ -7513,10 +7525,10 @@ impl<'a> Parser<'a> {
                     options.push(OperatorOption::Join(Some(self.parse_object_name(false)?)));
                 }
                 _ => {
-                    return Err(ParserError::ParserError(format!(
-                        "Duplicate or unexpected keyword {:?} in CREATE OPERATOR",
-                        keyword
-                    )))
+                    return parser_err!(
+                        format!("Duplicate or unexpected keyword {keyword:?} in CREATE OPERATOR"),
+                        self.get_current_token().span
+                    )
                 }
             }
 
@@ -7529,9 +7541,12 @@ impl<'a> Parser<'a> {
         self.expect_token(&Token::RParen)?;
 
         // FUNCTION is required
-        let function = function.ok_or_else(|| {
-            ParserError::ParserError("CREATE OPERATOR requires FUNCTION parameter".to_string())
-        })?;
+        let Some(function) = function else {
+            return parser_err!(
+                "CREATE OPERATOR requires FUNCTION parameter",
+                self.get_current_token().span
+            );
+        };
 
         Ok(CreateOperator {
             name,
@@ -7755,7 +7770,7 @@ impl<'a> Parser<'a> {
         let if_exists = self.parse_keywords(&[Keyword::IF, Keyword::EXISTS]);
         let names = self.parse_comma_separated(|p| p.parse_object_name(false))?;
 
-        let loc = self.peek_token_ref().span.start;
+        let loc = self.peek_token_ref().span;
         let cascade = self.parse_keyword(Keyword::CASCADE);
         let restrict = self.parse_keyword(Keyword::RESTRICT);
         let purge = self.parse_keyword(Keyword::PURGE);
@@ -7960,9 +7975,7 @@ impl<'a> Parser<'a> {
                 match keyword {
                     Keyword::WITH => Some(true),
                     Keyword::WITHOUT => Some(false),
-                    unexpected_keyword => return Err(ParserError::ParserError(
-                        format!("Internal parser error: unexpected keyword `{unexpected_keyword}` in cursor hold"),
-                    )),
+                    unexpected_keyword => return parser_err!(format!("Internal parser error: unexpected keyword `{unexpected_keyword}` in cursor hold"), self.get_current_token().span),
                 }
             }
             None => None,
@@ -8182,9 +8195,7 @@ impl<'a> Parser<'a> {
                     Token::Word(w) if w.keyword == Keyword::CURSOR
                 )
             {
-                Err(ParserError::TokenizerError(
-                    "Invalid MsSql variable declaration.".to_string(),
-                ))
+                parser_err!("Invalid MsSql variable declaration.", ident.span)
             } else {
                 Ok(ident)
             }
@@ -8323,7 +8334,7 @@ impl<'a> Parser<'a> {
             self.expect_keyword(Keyword::IN)?;
             FetchPosition::In
         } else {
-            return parser_err!("Expected FROM or IN", self.peek_token_ref().span.start);
+            return parser_err!("Expected FROM or IN", self.peek_token_ref().span);
         };
 
         let name = self.parse_identifier()?;
@@ -9106,7 +9117,7 @@ impl<'a> Parser<'a> {
         } else {
             parser_err!(
                 "Expecting DELETE ROWS, PRESERVE ROWS or DROP",
-                self.peek_token_ref()
+                self.peek_token_ref().span
             )
         }
     }
@@ -10660,9 +10671,7 @@ impl<'a> Parser<'a> {
 
             Ok(SqlOption::Clustered(TableOptionsClustered::Index(columns)))
         } else {
-            Err(ParserError::ParserError(
-                "invalid CLUSTERED sequence".to_string(),
-            ))
+            parser_err!("invalid CLUSTERED sequence", self.peek_token_ref().span)
         }
     }
 
@@ -11266,9 +11275,7 @@ impl<'a> Parser<'a> {
             Keyword::PART => Ok(Partition::Part(self.parse_expr()?)),
             Keyword::PARTITION => Ok(Partition::Expr(self.parse_expr()?)),
             // unreachable because expect_one_of_keywords used above
-            unexpected_keyword => Err(ParserError::ParserError(
-                format!("Internal parser error: expected any of {{PART, PARTITION}}, got {unexpected_keyword:?}"),
-            )),
+            unexpected_keyword => parser_err!(format!("Internal parser error: expected any of {{PART, PARTITION}}, got {unexpected_keyword:?}"), self.get_current_token().span),
         }
     }
 
@@ -11345,9 +11352,7 @@ impl<'a> Parser<'a> {
             }
             Keyword::USER => self.parse_alter_user().map(Into::into),
             // unreachable because expect_one_of_keywords used above
-            unexpected_keyword => Err(ParserError::ParserError(
-                format!("Internal parser error: expected any of {{TEXT SEARCH, VIEW, TYPE, COLLATION, TABLE, INDEX, FUNCTION, AGGREGATE, ROLE, POLICY, CONNECTOR, ICEBERG, SCHEMA, USER, OPERATOR}}, got {unexpected_keyword:?}"),
-            )),
+            unexpected_keyword => parser_err!(format!("Internal parser error: expected any of {{TEXT SEARCH, VIEW, TYPE, COLLATION, TABLE, INDEX, FUNCTION, AGGREGATE, ROLE, POLICY, CONNECTOR, ICEBERG, SCHEMA, USER, OPERATOR}}, got {unexpected_keyword:?}"), self.get_current_token().span),
         }
     }
 
@@ -11793,9 +11798,7 @@ impl<'a> Parser<'a> {
                     Keyword::MERGES => {
                         options.push(OperatorOption::Merges);
                     }
-                    unexpected_keyword => return Err(ParserError::ParserError(
-                        format!("Internal parser error: unexpected keyword `{unexpected_keyword}` in operator option"),
-                    )),
+                    unexpected_keyword => return parser_err!(format!("Internal parser error: unexpected keyword `{unexpected_keyword}` in operator option"), self.get_current_token().span),
                 }
 
                 if !self.consume_token(&Token::Comma) {
@@ -12066,7 +12069,7 @@ impl<'a> Parser<'a> {
                 Expr::Function(f) => Ok(Statement::Call(f)),
                 other => parser_err!(
                     format!("Expected a simple procedure call but found: {other}"),
-                    self.peek_token_ref().span.start
+                    self.peek_token_ref().span
                 ),
             }
         } else {
@@ -12106,9 +12109,10 @@ impl<'a> Parser<'a> {
             // Use a separate if statement to prevent Rust compiler from complaining about
             // "if statement in this position is unstable: https://github.com/rust-lang/rust/issues/53667"
             if let CopySource::Query(_) = source {
-                return Err(ParserError::ParserError(
-                    "COPY ... FROM does not support query as a source".to_string(),
-                ));
+                return parser_err!(
+                    "COPY ... FROM does not support query as a source",
+                    self.get_current_token().span
+                );
             }
         }
         let target = if self.parse_keyword(Keyword::STDIN) {
@@ -12479,10 +12483,7 @@ impl<'a> Parser<'a> {
     fn parse_literal_char(&mut self) -> Result<char, ParserError> {
         let s = self.parse_literal_string()?;
         if s.len() != 1 {
-            let loc = self
-                .tokens
-                .get(self.index - 1)
-                .map_or(Location { line: 0, column: 0 }, |t| t.span.start);
+            let loc = self.get_current_token().span;
             return parser_err!(format!("Expect a char, found {s:?}"), loc);
         }
         Ok(s.chars().next().unwrap())
@@ -12560,7 +12561,7 @@ impl<'a> Parser<'a> {
             // The call to n.parse() returns a bigdecimal when the
             // bigdecimal feature is enabled, and is otherwise a no-op
             // (i.e., it returns the input string).
-            Token::Number(n, l) => ok_value(Value::Number(Self::parse(n, span.start)?, l)),
+            Token::Number(n, l) => ok_value(Value::Number(Self::parse(n, span)?, l)),
             Token::SingleQuotedString(ref s) => ok_value(Value::SingleQuotedString(
                 self.maybe_concat_string_literal(s.to_string()),
             )),
@@ -12623,7 +12624,10 @@ impl<'a> Parser<'a> {
                 // 2. Not calling self.next_token() to enforce `tok`
                 //    be followed immediately by a word/number, ie.
                 //    without any whitespace in between
-                let next_token = self.next_token_no_skip().unwrap_or(&EOF_TOKEN).clone();
+                let next_token = match self.next_token_no_skip() {
+                    Some(token) => token.clone(),
+                    None => self.eof_token.clone(),
+                };
                 let ident = match next_token.token {
                     Token::Word(w) if w.quote_style.is_none() => Ok(w.into_ident(next_token.span)),
                     Token::Number(w, false) => Ok(Ident::with_span(next_token.span, w)),
@@ -12741,7 +12745,7 @@ impl<'a> Parser<'a> {
     pub fn parse_literal_uint(&mut self) -> Result<u64, ParserError> {
         let next_token = self.next_token();
         match next_token.token {
-            Token::Number(s, _) => Self::parse::<u64>(s, next_token.span.start),
+            Token::Number(s, _) => Self::parse::<u64>(s, next_token.span),
             _ => self.expected("literal int", next_token),
         }
     }
@@ -12890,7 +12894,7 @@ impl<'a> Parser<'a> {
         if trailing_bracket.0 {
             return parser_err!(
                 format!("unmatched > after parsing data type {ty}"),
-                self.peek_token_ref()
+                self.peek_token_ref().span
             );
         }
 
@@ -12901,7 +12905,7 @@ impl<'a> Parser<'a> {
     fn parse_data_type_helper(
         &mut self,
     ) -> Result<(DataType, MatchedTrailingBracket), ParserError> {
-        let _guard = self.recursion_counter.try_decrease()?;
+        let _guard = self.recursion_guard()?;
 
         let dialect = self.dialect;
         self.advance_token();
@@ -13296,7 +13300,7 @@ impl<'a> Parser<'a> {
                     if key_trailing_bracket.0 {
                         return parser_err!(
                             format!("unmatched > after parsing data type {key_data_type}"),
-                            self.peek_token_ref()
+                            self.peek_token_ref().span
                         );
                     }
                     self.expect_token(&Token::Comma)?;
@@ -13483,12 +13487,14 @@ impl<'a> Parser<'a> {
         &mut self,
         operator_name: &str,
     ) -> Result<SetQuantifier, ParserError> {
+        let span = self.peek_token_ref().span;
         let quantifier = self.parse_set_quantifier(&Some(SetOperator::Intersect));
         match quantifier {
             SetQuantifier::Distinct | SetQuantifier::DistinctByName => Ok(quantifier),
-            _ => Err(ParserError::ParserError(format!(
-                "{operator_name} pipe operator requires DISTINCT modifier",
-            ))),
+            _ => parser_err!(
+                format!("{operator_name} pipe operator requires DISTINCT modifier"),
+                span
+            ),
         }
     }
 
@@ -13681,7 +13687,7 @@ impl<'a> Parser<'a> {
                         _ => {
                             return parser_err!(
                                 "BUG: expected to match GroupBy modifier keyword",
-                                self.peek_token_ref().span.start
+                                self.peek_token_ref().span
                             )
                         }
                     });
@@ -13754,11 +13760,12 @@ impl<'a> Parser<'a> {
                 && expr.is_some() // ALL not supported with comma
                 && self.consume_token(&Token::Comma)
             {
-                let offset = expr.ok_or_else(|| {
-                    ParserError::ParserError(
-                        "Missing offset for LIMIT <offset>, <limit>".to_string(),
-                    )
-                })?;
+                let Some(offset) = expr else {
+                    return parser_err!(
+                        "Missing offset for LIMIT <offset>, <limit>",
+                        self.get_current_token().span
+                    );
+                };
                 return Ok(Some(LimitClause::OffsetCommaLimit {
                     offset,
                     limit: self.parse_expr()?,
@@ -13966,7 +13973,7 @@ impl<'a> Parser<'a> {
     /// let actual = parser.parse_multipart_identifier().unwrap_err();
     /// assert_eq!(
     ///     actual.to_string(),
-    ///     "sql parser error: Unexpected token in identifier: +"
+    ///     "sql parser error: Unexpected token in identifier: + at Line: 1, Column: 5"
     /// );
     /// ```
     ///
@@ -13979,14 +13986,13 @@ impl<'a> Parser<'a> {
         match next_token.token {
             Token::Word(w) => idents.push(w.into_ident(next_token.span)),
             Token::EOF => {
-                return Err(ParserError::ParserError(
-                    "Empty input when parsing identifier".to_string(),
-                ))?
+                return parser_err!("Empty input when parsing identifier", next_token.span)
             }
             token => {
-                return Err(ParserError::ParserError(format!(
-                    "Unexpected token in identifier: {token}"
-                )))?
+                return parser_err!(
+                    format!("Unexpected token in identifier: {token}"),
+                    next_token.span
+                )
             }
         };
 
@@ -13999,22 +14005,22 @@ impl<'a> Parser<'a> {
                     match next_token.token {
                         Token::Word(w) => idents.push(w.into_ident(next_token.span)),
                         Token::EOF => {
-                            return Err(ParserError::ParserError(
-                                "Trailing period in identifier".to_string(),
-                            ))?
+                            return parser_err!("Trailing period in identifier", next_token.span)
                         }
                         token => {
-                            return Err(ParserError::ParserError(format!(
-                                "Unexpected token following period in identifier: {token}"
-                            )))?
+                            return parser_err!(
+                                format!("Unexpected token following period in identifier: {token}"),
+                                next_token.span
+                            )
                         }
                     }
                 }
                 Token::EOF => break,
                 token => {
-                    Err(ParserError::ParserError(format!(
-                        "Unexpected token in identifier: {token}"
-                    )))?;
+                    return parser_err!(
+                        format!("Unexpected token in identifier: {token}"),
+                        self.get_current_token().span
+                    );
                 }
             }
         }
@@ -14475,9 +14481,9 @@ impl<'a> Parser<'a> {
         match &current_token.token {
             Token::Number(s, _) => {
                 let s = s.clone();
-                let span_start = current_token.span.start;
+                let span = current_token.span;
                 self.advance_token();
-                let value = Self::parse::<i64>(s, span_start)?;
+                let value = Self::parse::<i64>(s, span)?;
                 Ok(if is_negative { -value } else { value })
             }
             _ => self.expected_ref("number", current_token),
@@ -14684,10 +14690,11 @@ impl<'a> Parser<'a> {
             }
         }
 
+        let statement_span = self.peek_token_ref().span;
         match self.maybe_parse(|parser| parser.parse_statement())? {
-            Some(Statement::Explain { .. }) | Some(Statement::ExplainTable { .. }) => Err(
-                ParserError::ParserError("Explain must be root of the plan".to_string()),
-            ),
+            Some(Statement::Explain { .. }) | Some(Statement::ExplainTable { .. }) => {
+                parser_err!("Explain must be root of the plan", statement_span)
+            }
             Some(statement) => Ok(Statement::Explain {
                 describe_alias,
                 analyze,
@@ -14730,7 +14737,7 @@ impl<'a> Parser<'a> {
     /// expect the initial keyword to be already consumed
     #[cfg_attr(feature = "recursive-protection", recursive::recursive)]
     pub fn parse_query(&mut self) -> Result<Box<Query>, ParserError> {
-        let _guard = self.recursion_counter.try_decrease()?;
+        let _guard = self.recursion_guard()?;
         let with = if self.parse_keyword(Keyword::WITH) {
             let with_token = self.get_current_token();
             Some(With {
@@ -14997,9 +15004,10 @@ impl<'a> Parser<'a> {
                         let alias = self.parse_identifier_optional_alias()?;
                         pipe_operators.push(PipeOperator::Call { function, alias });
                     } else {
-                        return Err(ParserError::ParserError(
-                            "Expected function call after CALL".to_string(),
-                        ));
+                        return parser_err!(
+                            "Expected function call after CALL",
+                            function_expr.span()
+                        );
                     }
                 }
                 Keyword::PIVOT => {
@@ -15066,19 +15074,19 @@ impl<'a> Parser<'a> {
                 | Keyword::FULL
                 | Keyword::CROSS => {
                     self.prev_token();
+                    let join_span = self.peek_token_ref().span;
                     let mut joins = self.parse_joins()?;
                     if joins.len() != 1 {
-                        return Err(ParserError::ParserError(
-                            "Join pipe operator must have a single join".to_string(),
-                        ));
+                        return parser_err!("Join pipe operator must have a single join", join_span);
                     }
                     let join = joins.swap_remove(0);
                     pipe_operators.push(PipeOperator::Join(join))
                 }
                 unhandled => {
-                    return Err(ParserError::ParserError(format!(
-                    "`expect_one_of_keywords` further up allowed unhandled keyword: {unhandled:?}"
-                )))
+                    return parser_err!(
+                        format!("`expect_one_of_keywords` further up allowed unhandled keyword: {unhandled:?}"),
+                        self.get_current_token().span
+                    )
                 }
             }
         }
@@ -15137,9 +15145,10 @@ impl<'a> Parser<'a> {
             }
             ForXml::Path(element_name)
         } else {
-            return Err(ParserError::ParserError(
-                "Expected FOR XML [RAW | AUTO | EXPLICIT | PATH ]".to_string(),
-            ));
+            return self.expected_ref(
+                "RAW, AUTO, EXPLICIT or PATH after FOR XML",
+                self.peek_token_ref(),
+            );
         };
         let mut elements = false;
         let mut binary_base64 = false;
@@ -15176,9 +15185,7 @@ impl<'a> Parser<'a> {
         } else if self.parse_keyword(Keyword::PATH) {
             ForJson::Path
         } else {
-            return Err(ParserError::ParserError(
-                "Expected FOR JSON [AUTO | PATH ]".to_string(),
-            ));
+            return self.expected_ref("AUTO or PATH after FOR JSON", self.peek_token_ref());
         };
         let mut root = None;
         let mut include_null_values = false;
@@ -16022,10 +16029,13 @@ impl<'a> Parser<'a> {
                 return if assignments.len() > 1 {
                     Ok(Set::MultipleAssignments { assignments }.into())
                 } else {
-                    let SetAssignment { scope, name, value } =
-                        assignments.into_iter().next().ok_or_else(|| {
-                            ParserError::ParserError("Expected at least one assignment".to_string())
-                        })?;
+                    let Some(SetAssignment { scope, name, value }) = assignments.into_iter().next()
+                    else {
+                        return parser_err!(
+                            "Expected at least one assignment",
+                            self.get_current_token().span
+                        );
+                    };
 
                     Ok(Set::SingleAssignment {
                         scope,
@@ -16177,9 +16187,10 @@ impl<'a> Parser<'a> {
         } else if self.parse_keyword(Keyword::PROCESSLIST) {
             Ok(Statement::ShowProcessList { full })
         } else if extended || full {
-            Err(ParserError::ParserError(
-                "EXTENDED/FULL are not supported with this type of SHOW query".to_string(),
-            ))
+            parser_err!(
+                "EXTENDED/FULL are not supported with this type of SHOW query",
+                self.peek_token_ref().span
+            )
         } else if self.parse_one_of_keywords(&[Keyword::CREATE]).is_some() {
             Ok(self.parse_show_create()?)
         } else if self.parse_keyword(Keyword::COLLATION) {
@@ -16271,9 +16282,10 @@ impl<'a> Parser<'a> {
             Keyword::PROCEDURE => Ok(ShowCreateObject::Procedure),
             Keyword::EVENT => Ok(ShowCreateObject::Event),
             Keyword::VIEW => Ok(ShowCreateObject::View),
-            keyword => Err(ParserError::ParserError(format!(
-                "Unable to map keyword to ShowCreateObject: {keyword:?}"
-            ))),
+            keyword => parser_err!(
+                format!("Unable to map keyword to ShowCreateObject: {keyword:?}"),
+                self.get_current_token().span
+            ),
         }?;
 
         let obj_name = self.parse_object_name(false)?;
@@ -16560,9 +16572,10 @@ impl<'a> Parser<'a> {
                                 }
                             }
                             _ => {
-                                return Err(ParserError::ParserError(format!(
-                                    "expected OUTER, SEMI, ANTI or JOIN after {kw:?}"
-                                )))
+                                return self.expected_ref(
+                                    &format!("OUTER, SEMI, ANTI or JOIN after {kw:?}"),
+                                    self.peek_token_ref(),
+                                )
                             }
                         }
                     }
@@ -16639,7 +16652,7 @@ impl<'a> Parser<'a> {
     /// A table name or a parenthesized subquery, followed by optional `[AS] alias`
     #[cfg_attr(feature = "recursive-protection", recursive::recursive)]
     pub fn parse_table_factor(&mut self) -> Result<TableFactor, ParserError> {
-        let _guard = self.recursion_counter.try_decrease()?;
+        let _guard = self.recursion_guard()?;
         if self.parse_keyword(Keyword::LATERAL) {
             // LATERAL must always be followed by a subquery or table function.
             if self.consume_token(&Token::LParen) {
@@ -16713,9 +16726,7 @@ impl<'a> Parser<'a> {
                     table = match kw {
                         Keyword::PIVOT => self.parse_pivot_table_factor(table)?,
                         Keyword::UNPIVOT => self.parse_unpivot_table_factor(table)?,
-                        unexpected_keyword => return Err(ParserError::ParserError(
-                            format!("Internal parser error: unexpected keyword `{unexpected_keyword}` in pivot/unpivot"),
-                        )),
+                        unexpected_keyword => return parser_err!(format!("Internal parser error: unexpected keyword `{unexpected_keyword}` in pivot/unpivot"), self.get_current_token().span),
                     }
                 }
                 return Ok(table);
@@ -16778,9 +16789,10 @@ impl<'a> Parser<'a> {
                         | TableFactor::NestedJoin { alias, .. } => {
                             // but not `FROM (mytable AS alias1) AS alias2`.
                             if let Some(inner_alias) = alias {
-                                return Err(ParserError::ParserError(format!(
-                                    "duplicate alias {inner_alias}"
-                                )));
+                                return parser_err!(
+                                    format!("duplicate alias {inner_alias}"),
+                                    outer_alias.name.span
+                                );
                             }
                             // Act as if the alias was specified normally next
                             // to the table name: `(mytable) AS alias` ->
@@ -16788,10 +16800,10 @@ impl<'a> Parser<'a> {
                             alias.replace(outer_alias);
                         }
                         TableFactor::UnpivotExpr { .. } => {
-                            return Err(ParserError::ParserError(
-                                "alias after parenthesized UNPIVOT expression is not supported"
-                                    .to_string(),
-                            ))
+                            return parser_err!(
+                                "alias after parenthesized UNPIVOT expression is not supported",
+                                outer_alias.name.span
+                            )
                         }
                     };
                 }
@@ -16985,9 +16997,7 @@ impl<'a> Parser<'a> {
                 table = match kw {
                     Keyword::PIVOT => self.parse_pivot_table_factor(table)?,
                     Keyword::UNPIVOT => self.parse_unpivot_table_factor(table)?,
-                    unexpected_keyword => return Err(ParserError::ParserError(
-                        format!("Internal parser error: unexpected keyword `{unexpected_keyword}` in pivot/unpivot"),
-                    )),
+                    unexpected_keyword => return parser_err!(format!("Internal parser error: unexpected keyword `{unexpected_keyword}` in pivot/unpivot"), self.get_current_token().span),
                 }
             }
 
@@ -17089,7 +17099,7 @@ impl<'a> Parser<'a> {
                     } else {
                         return parser_err!(
                             "Expecting number or byte length e.g. 100M",
-                            self.peek_token_ref().span.start
+                            self.peek_token_ref().span
                         );
                     }
                 }
@@ -17285,30 +17295,34 @@ impl<'a> Parser<'a> {
         while self.peek_token_ref().token != Token::RParen {
             if self.parse_keyword(Keyword::DIMENSIONS) {
                 if !dimensions.is_empty() {
-                    return Err(ParserError::ParserError(
-                        "DIMENSIONS clause can only be specified once".to_string(),
-                    ));
+                    return parser_err!(
+                        "DIMENSIONS clause can only be specified once",
+                        self.get_current_token().span
+                    );
                 }
                 dimensions = self.parse_comma_separated(Parser::parse_wildcard_expr)?;
             } else if self.parse_keyword(Keyword::METRICS) {
                 if !metrics.is_empty() {
-                    return Err(ParserError::ParserError(
-                        "METRICS clause can only be specified once".to_string(),
-                    ));
+                    return parser_err!(
+                        "METRICS clause can only be specified once",
+                        self.get_current_token().span
+                    );
                 }
                 metrics = self.parse_comma_separated(Parser::parse_wildcard_expr)?;
             } else if self.parse_keyword(Keyword::FACTS) {
                 if !facts.is_empty() {
-                    return Err(ParserError::ParserError(
-                        "FACTS clause can only be specified once".to_string(),
-                    ));
+                    return parser_err!(
+                        "FACTS clause can only be specified once",
+                        self.get_current_token().span
+                    );
                 }
                 facts = self.parse_comma_separated(Parser::parse_wildcard_expr)?;
             } else if self.parse_keyword(Keyword::WHERE) {
                 if where_clause.is_some() {
-                    return Err(ParserError::ParserError(
-                        "WHERE clause can only be specified once".to_string(),
-                    ));
+                    return parser_err!(
+                        "WHERE clause can only be specified once",
+                        self.get_current_token().span
+                    );
                 }
                 where_clause = Some(self.parse_expr()?);
             } else {
@@ -17318,7 +17332,7 @@ impl<'a> Parser<'a> {
                         "Expected one of DIMENSIONS, METRICS, FACTS or WHERE, got {}",
                         tok.token
                     ),
-                    tok.span.start
+                    tok.span
                 )?;
             }
         }
@@ -17498,7 +17512,7 @@ impl<'a> Parser<'a> {
                             return self.expected("literal number", next_token);
                         };
                         self.expect_token(&Token::RBrace)?;
-                        RepetitionQuantifier::AtMost(Self::parse(n, token.span.start)?)
+                        RepetitionQuantifier::AtMost(Self::parse(n, token.span)?)
                     }
                     Token::Number(n, _) if self.consume_token(&Token::Comma) => {
                         let next_token = self.next_token();
@@ -17506,19 +17520,19 @@ impl<'a> Parser<'a> {
                             Token::Number(m, _) => {
                                 self.expect_token(&Token::RBrace)?;
                                 RepetitionQuantifier::Range(
-                                    Self::parse(n, token.span.start)?,
-                                    Self::parse(m, token.span.start)?,
+                                    Self::parse(n, token.span)?,
+                                    Self::parse(m, token.span)?,
                                 )
                             }
                             Token::RBrace => {
-                                RepetitionQuantifier::AtLeast(Self::parse(n, token.span.start)?)
+                                RepetitionQuantifier::AtLeast(Self::parse(n, token.span)?)
                             }
                             _ => return self.expected("} or upper bound", next_token),
                         }
                     }
                     Token::Number(n, _) => {
                         self.expect_token(&Token::RBrace)?;
-                        RepetitionQuantifier::Exactly(Self::parse(n, token.span.start)?)
+                        RepetitionQuantifier::Exactly(Self::parse(n, token.span)?)
                     }
                     _ => return self.expected("quantifier range", token),
                 }
@@ -18202,9 +18216,7 @@ impl<'a> Parser<'a> {
                         }
                     }
                     Some(Keyword::TABLE) | None => Some(GrantObjects::Tables(objects?)),
-                    Some(unexpected_keyword) => return Err(ParserError::ParserError(
-                        format!("Internal parser error: unexpected keyword `{unexpected_keyword}` in grant objects"),
-                    )),
+                    Some(unexpected_keyword) => return parser_err!(format!("Internal parser error: unexpected keyword `{unexpected_keyword}` in grant objects"), self.get_current_token().span),
                 }
             }
         } else {
@@ -18517,7 +18529,7 @@ impl<'a> Parser<'a> {
             None => {
                 return parser_err!(
                     "DENY statements must specify an object",
-                    self.peek_token_ref().span.start
+                    self.peek_token_ref().span
                 )
             }
         };
@@ -18574,10 +18586,7 @@ impl<'a> Parser<'a> {
         replace_token: TokenWithSpan,
     ) -> Result<Statement, ParserError> {
         if !dialect_of!(self is MySqlDialect | GenericDialect) {
-            return parser_err!(
-                "Unsupported statement REPLACE",
-                self.peek_token_ref().span.start
-            );
+            return parser_err!("Unsupported statement REPLACE", self.peek_token_ref().span);
         }
 
         let mut insert = self.parse_insert(replace_token)?;
@@ -19237,9 +19246,7 @@ impl<'a> Parser<'a> {
             let kind = match self.expect_one_of_keywords(&[Keyword::MIN, Keyword::MAX])? {
                 Keyword::MIN => HavingBoundKind::Min,
                 Keyword::MAX => HavingBoundKind::Max,
-                unexpected_keyword => return Err(ParserError::ParserError(
-                    format!("Internal parser error: unexpected keyword `{unexpected_keyword}` in having bound"),
-                )),
+                unexpected_keyword => return parser_err!(format!("Internal parser error: unexpected keyword `{unexpected_keyword}` in having bound"), self.get_current_token().span),
             };
             clauses.push(FunctionArgumentClause::Having(HavingBound(
                 kind,
@@ -19297,7 +19304,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_duplicate_treatment(&mut self) -> Result<Option<DuplicateTreatment>, ParserError> {
-        let loc = self.peek_token_ref().span.start;
+        let loc = self.peek_token_ref().span;
         match (
             self.parse_keyword(Keyword::ALL),
             self.parse_keyword(Keyword::DISTINCT),
@@ -19329,7 +19336,7 @@ impl<'a> Parser<'a> {
             Expr::Identifier(v) if v.value.to_lowercase() == "from" && v.quote_style.is_none() => {
                 parser_err!(
                     format!("Expected an expression, found: {}", v),
-                    self.peek_token_ref().span.start
+                    self.peek_token_ref().span
                 )
             }
             Expr::BinaryOp {
@@ -19343,13 +19350,13 @@ impl<'a> Parser<'a> {
                 {
                     return parser_err!(
                         format!("Expected an expression, found: {right}"),
-                        self.peek_token_ref().span.start
+                        self.peek_token_ref().span
                     );
                 }
                 let Expr::Identifier(alias) = *left else {
                     return parser_err!(
                         "BUG: expected identifier expression as alias",
-                        self.peek_token_ref().span.start
+                        self.peek_token_ref().span
                     );
                 };
                 Ok(SelectItem::ExprWithAlias {
@@ -19758,7 +19765,7 @@ impl<'a> Parser<'a> {
         } else {
             let next_token = self.next_token();
             let quantity = match next_token.token {
-                Token::Number(s, _) => Self::parse::<u64>(s, next_token.span.start)?,
+                Token::Number(s, _) => Self::parse::<u64>(s, next_token.span)?,
                 _ => self.expected("literal int", next_token)?,
             };
             Some(TopQuantity::Constant(quantity))
@@ -19831,9 +19838,7 @@ impl<'a> Parser<'a> {
         let lock_type = match self.expect_one_of_keywords(&[Keyword::UPDATE, Keyword::SHARE])? {
             Keyword::UPDATE => LockType::Update,
             Keyword::SHARE => LockType::Share,
-            unexpected_keyword => return Err(ParserError::ParserError(
-                format!("Internal parser error: expected any of {{UPDATE, SHARE}}, got {unexpected_keyword:?}"),
-            )),
+            unexpected_keyword => return parser_err!(format!("Internal parser error: expected any of {{UPDATE, SHARE}}, got {unexpected_keyword:?}"), self.get_current_token().span),
         };
         let of = if self.parse_keyword(Keyword::OF) {
             Some(self.parse_object_name(false)?)
@@ -21050,11 +21055,12 @@ impl<'a> Parser<'a> {
             Some(Keyword::CATEGORY) => {
                 self.expect_token(&Token::Eq)?;
                 let category_str = self.parse_literal_string()?;
-                let category_char = category_str.chars().next().ok_or_else(|| {
-                    ParserError::ParserError(
-                        "CATEGORY value must be a single character".to_string(),
-                    )
-                })?;
+                let Some(category_char) = category_str.chars().next() else {
+                    return parser_err!(
+                        "CATEGORY value must be a single character",
+                        self.get_current_token().span
+                    );
+                };
                 Ok(UserDefinedTypeSqlDefinitionOption::Category(category_char))
             }
             Some(Keyword::PREFERRED) => {
@@ -22109,22 +22115,21 @@ mod tests {
         let ast = Parser::parse_sql(&GenericDialect, sql);
         assert_eq!(
             ast,
-            Err(ParserError::TokenizerError(
-                "Unterminated string literal at Line: 1, Column: 5".to_string()
-            ))
+            Err(ParserError::TokenizerError {
+                message: "Unterminated string literal".to_string(),
+                span: Span::new(Location::new(1, 5), Location::new(1, 5)),
+            })
         );
     }
 
     #[test]
     fn test_parser_error_loc() {
         let sql = "SELECT this is a syntax error";
-        let ParserError::ParserError(msg) = Parser::parse_sql(&GenericDialect, sql).unwrap_err()
-        else {
-            panic!("expected ParserError::ParserError");
-        };
+        let err = Parser::parse_sql(&GenericDialect, sql).unwrap_err();
+        assert!(matches!(err, ParserError::ParserError { .. }));
         assert!(
-            msg.ends_with("found: a at Line: 1, Column: 16"),
-            "unexpected error message: {msg}"
+            err.to_string().ends_with("found: a at Line: 1, Column: 16"),
+            "unexpected error message: {err}"
         );
     }
 
@@ -22134,9 +22139,10 @@ mod tests {
         let ast = Parser::parse_sql(&GenericDialect, sql);
         assert_eq!(
             ast,
-            Err(ParserError::ParserError(
-                "Explain must be root of the plan".to_string()
-            ))
+            Err(ParserError::ParserError {
+                message: "Explain must be root of the plan".to_string(),
+                span: Span::new(Location::new(1, 9), Location::new(1, 16)),
+            })
         );
     }
 
@@ -22199,27 +22205,27 @@ mod tests {
 
         test_parse_multipart_identifier_error!(
             "",
-            "sql parser error: Empty input when parsing identifier",
+            "sql parser error: Empty input when parsing identifier at Line: 1, Column: 1",
         );
 
         test_parse_multipart_identifier_error!(
             "*schema.table",
-            "sql parser error: Unexpected token in identifier: *",
+            "sql parser error: Unexpected token in identifier: * at Line: 1, Column: 1",
         );
 
         test_parse_multipart_identifier_error!(
             "schema.table*",
-            "sql parser error: Unexpected token in identifier: *",
+            "sql parser error: Unexpected token in identifier: * at Line: 1, Column: 13",
         );
 
         test_parse_multipart_identifier_error!(
             "schema.table.",
-            "sql parser error: Trailing period in identifier",
+            "sql parser error: Trailing period in identifier at Line: 1, Column: 14",
         );
 
         test_parse_multipart_identifier_error!(
             "schema.*",
-            "sql parser error: Unexpected token following period in identifier: *",
+            "sql parser error: Unexpected token following period in identifier: * at Line: 1, Column: 8",
         );
     }
 

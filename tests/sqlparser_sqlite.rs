@@ -30,7 +30,7 @@ use sqlparser::ast::SelectItem::UnnamedExpr;
 use sqlparser::ast::Value::Placeholder;
 use sqlparser::ast::*;
 use sqlparser::dialect::{GenericDialect, SQLiteDialect};
-use sqlparser::parser::{ParserError, ParserOptions};
+use sqlparser::parser::ParserOptions;
 use sqlparser::tokenizer::Token;
 
 #[test]
@@ -359,7 +359,7 @@ fn test_parse_create_table_on_conflict_col_err() {
         .unwrap_err();
     assert_eq!(
         err,
-        ParserError::ParserError(
+        parser_error(
             "Expected: one of ROLLBACK or ABORT or FAIL or IGNORE or REPLACE, found: BOH"
                 .to_string()
         )
@@ -965,7 +965,7 @@ fn parse_update_set_double_eq() {
     // `=` still works
     sqlite().verified_stmt("UPDATE t SET a = 1");
     // Other dialects reject `==` in SET
-    let res = ParserError::ParserError("Expected: =, found: ==".to_string());
+    let res = parser_error("Expected: =, found: ==");
     assert_eq!(
         all_dialects_except(|d| d.supports_double_eq_assignment())
             .parse_sql_statements("UPDATE t SET a == 1")

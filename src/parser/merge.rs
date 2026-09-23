@@ -13,7 +13,7 @@
 //! SQL Parser for a `MERGE` statement
 
 #[cfg(not(feature = "std"))]
-use alloc::{boxed::Box, format, vec, vec::Vec};
+use alloc::{boxed::Box, vec, vec::Vec};
 
 use crate::{
     ast::{
@@ -124,7 +124,7 @@ impl Parser<'_> {
                     ) {
                         return parser_err!(
                             format_args!("UPDATE is not allowed in a {clause_kind} merge clause"),
-                            self.get_current_token().span.start
+                            self.get_current_token().span
                         );
                     }
 
@@ -160,7 +160,7 @@ impl Parser<'_> {
                     ) {
                         return parser_err!(
                             format_args!("DELETE is not allowed in a {clause_kind} merge clause"),
-                            self.get_current_token().span.start
+                            self.get_current_token().span
                         );
                     };
 
@@ -176,7 +176,7 @@ impl Parser<'_> {
                     ) {
                         return parser_err!(
                             format_args!("INSERT is not allowed in a {clause_kind} merge clause"),
-                            self.get_current_token().span.start
+                            self.get_current_token().span
                         );
                     };
 
@@ -222,7 +222,7 @@ impl Parser<'_> {
                 _ => {
                     return parser_err!(
                         "expected UPDATE, DELETE, INSERT or DO NOTHING in merge clause",
-                        self.peek_token_ref().span.start
+                        self.peek_token_ref().span
                     );
                 }
             };

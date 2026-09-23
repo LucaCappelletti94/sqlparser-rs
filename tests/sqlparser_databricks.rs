@@ -18,7 +18,6 @@
 use sqlparser::ast::helpers::attached_token::AttachedToken;
 use sqlparser::ast::*;
 use sqlparser::dialect::{DatabricksDialect, GenericDialect};
-use sqlparser::parser::ParserError;
 use sqlparser::tokenizer::Span;
 use test_utils::*;
 
@@ -86,7 +85,7 @@ fn test_databricks_exists() {
     let res = databricks().parse_sql_statements("SELECT EXISTS (");
     assert_eq!(
         // TODO: improve this error message...
-        ParserError::ParserError("Expected: an expression, found: EOF".to_string()),
+        parser_error("Expected: an expression, found: EOF".to_string()),
         res.unwrap_err(),
     );
 }
@@ -294,7 +293,7 @@ fn parse_use() {
     for sql in &invalid_cases {
         assert_eq!(
             databricks().parse_sql_statements(sql).unwrap_err(),
-            ParserError::ParserError("Expected: identifier, found: EOF".to_string()),
+            parser_error("Expected: identifier, found: EOF".to_string()),
         );
     }
 }
@@ -521,13 +520,13 @@ fn parse_optimize_table() {
         databricks()
             .parse_sql_statements("OPTIMIZE my_table ZORDER BY")
             .unwrap_err(),
-        ParserError::ParserError("Expected: (, found: EOF".to_string())
+        parser_error("Expected: (, found: EOF".to_string())
     );
     assert_eq!(
         databricks()
             .parse_sql_statements("OPTIMIZE my_table ZORDER BY ()")
             .unwrap_err(),
-        ParserError::ParserError("Expected: an expression, found: )".to_string())
+        parser_error("Expected: an expression, found: )".to_string())
     );
 }
 

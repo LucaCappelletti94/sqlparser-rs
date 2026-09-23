@@ -28,7 +28,10 @@ fn with_recursion_limit_applies_without_default_features() {
         .unwrap()
         .parse_statements();
 
-    assert_eq!(result, Err(ParserError::RecursionLimitExceeded));
+    assert!(matches!(
+        result,
+        Err(ParserError::RecursionLimitExceeded { .. })
+    ));
 }
 
 #[test]
@@ -42,7 +45,10 @@ fn default_recursion_limit_applies_without_default_features() {
 
     let result = Parser::parse_sql(&dialect, &sql);
 
-    assert_eq!(result, Err(ParserError::RecursionLimitExceeded));
+    assert!(matches!(
+        result,
+        Err(ParserError::RecursionLimitExceeded { .. })
+    ));
 }
 
 #[test]
@@ -87,7 +93,10 @@ fn deeply_nested_intervals_hit_recursion_limit_without_default_features() {
 
     let result = Parser::parse_sql(&dialect, &sql);
 
-    assert_eq!(result, Err(ParserError::RecursionLimitExceeded));
+    assert!(matches!(
+        result,
+        Err(ParserError::RecursionLimitExceeded { .. })
+    ));
 }
 
 #[test]
@@ -101,7 +110,10 @@ fn nested_queries_hit_recursion_limit_without_default_features() {
 
     let result = Parser::parse_sql(&dialect, &sql);
 
-    assert_eq!(result, Err(ParserError::RecursionLimitExceeded));
+    assert!(matches!(
+        result,
+        Err(ParserError::RecursionLimitExceeded { .. })
+    ));
 }
 
 #[test]
@@ -111,5 +123,8 @@ fn nested_table_factors_hit_recursion_limit_without_default_features() {
 
     let result = Parser::parse_sql(&dialect, &sql);
 
-    assert_eq!(result, Err(ParserError::RecursionLimitExceeded));
+    assert!(matches!(
+        result,
+        Err(ParserError::RecursionLimitExceeded { .. })
+    ));
 }

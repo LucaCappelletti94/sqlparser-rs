@@ -24,7 +24,6 @@ use test_utils::*;
 
 use sqlparser::ast::*;
 use sqlparser::dialect::{DuckDbDialect, GenericDialect};
-use sqlparser::parser::ParserError;
 
 fn duckdb() -> TestedDialects {
     TestedDialects::new(vec![Box::new(DuckDbDialect {})])
@@ -881,7 +880,7 @@ fn test_duckdb_trim() {
     // missing comma separation
     let error_sql = "SELECT TRIM('xyz' 'a')";
     assert_eq!(
-        ParserError::ParserError("Expected: ), found: 'a'".to_owned()),
+        parser_error("Expected: ), found: 'a'".to_owned()),
         duckdb().parse_sql_statements(error_sql).unwrap_err()
     );
 }
