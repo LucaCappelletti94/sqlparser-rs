@@ -957,6 +957,27 @@ fn parse_pattern_operators_bind_at_like_precedence() {
     }
 }
 
+#[test]
+fn parse_window_function_keyword_base_window_name() {
+    // SQLite allows any nm (nearly any word) as the base window name in an OVER clause.
+    sqlite().verified_stmt("SELECT count() OVER (id ORDER BY a) FROM t");
+    sqlite().verified_stmt("SELECT count() OVER (part ORDER BY a) FROM t");
+
+    // PARTITION and ORDER are never valid base window names in SQLite either.
+    assert!(sqlite()
+        .parse_sql_statements(
+            "SELECT count() OVER (partition ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) FROM t"
+        )
+        .is_err());
+    assert!(sqlite()
+        .parse_sql_statements("SELECT count() OVER (order ORDER BY a) FROM t")
+        .is_err());
+    // A dialect without the flag must still reject non-structural keywords too.
+    assert!(TestedDialects::new(vec![Box::new(GenericDialect {})])
+        .parse_sql_statements("SELECT count() OVER (id ORDER BY a) FROM t")
+        .is_err());
+}
+
 fn sqlite() -> TestedDialects {
     TestedDialects::new(vec![Box::new(SQLiteDialect {})])
 }

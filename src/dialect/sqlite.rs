@@ -129,4 +129,8 @@ impl Dialect for SQLiteDialect {
     fn supports_numeric_literal_underscores(&self) -> bool {
         true
     }
+
+    fn supports_window_function_base_window_name_as_keyword(&self) -> bool {
+        true
+    }
 }

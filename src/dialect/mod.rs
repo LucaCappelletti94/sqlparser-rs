@@ -518,6 +518,15 @@ pub trait Dialect: Debug + Any {
         false
     }
 
+    /// Returns true if the dialect allows keywords to be used as the base window
+    /// name inside a window spec, e.g. `OVER (id ORDER BY a)`.
+    ///
+    /// In SQLite, nearly any word is a valid window name (`nm` production).
+    /// See <https://www.sqlite.org/windowfunctions.html#syntax_of_window_functions>
+    fn supports_window_function_base_window_name_as_keyword(&self) -> bool {
+        false
+    }
+
     /// Returns true if the dialect supports defining structs or objects using a
     /// syntax like `{'x': 1, 'y': 2, 'z': 3}`.
     fn supports_dictionary_syntax(&self) -> bool {

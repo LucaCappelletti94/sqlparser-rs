@@ -20471,11 +20471,30 @@ impl<'a> Parser<'a> {
 
     /// Parse a window specification.
     pub fn parse_window_spec(&mut self) -> Result<WindowSpec, ParserError> {
-        let window_name = match &self.peek_token_ref().token {
-            Token::Word(word) if word.keyword == Keyword::NoKeyword => {
-                self.parse_optional_ident()?
+        let window_name = {
+            let kw = match &self.peek_token_ref().token {
+                Token::Word(w) => Some(w.keyword),
+                _ => None,
+            };
+            match kw {
+                Some(Keyword::NoKeyword) => self.parse_optional_ident()?,
+                Some(w)
+                    if self
+                        .dialect
+                        .supports_window_function_base_window_name_as_keyword()
+                        && !matches!(
+                            w,
+                            Keyword::ROWS
+                                | Keyword::RANGE
+                                | Keyword::GROUPS
+                                | Keyword::PARTITION
+                                | Keyword::ORDER
+                        ) =>
+                {
+                    self.parse_optional_ident()?
+                }
+                _ => None,
             }
-            _ => None,
         };
 
         let partition_by = if self.parse_keywords(&[Keyword::PARTITION, Keyword::BY]) {
