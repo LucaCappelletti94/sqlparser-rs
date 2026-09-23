@@ -968,6 +968,135 @@ fn parse_bitwise_shift_operators() {
     assert!(res.is_err());
 }
 
+#[test]
+fn bitwise_operators_share_precedence() {
+    fn first_select_expr(dialect: &TestedDialects, sql: &str) -> Expr {
+        let Statement::Query(query) = dialect.verified_stmt(sql) else {
+            panic!("expected a query");
+        };
+        let SetExpr::Select(select) = *query.body else {
+            panic!("expected a select");
+        };
+        let UnnamedExpr(expr) = select.projection.into_iter().next().unwrap() else {
+            panic!("expected an unnamed expr");
+        };
+        expr
+    }
+
+    // SQLite evaluates 4 | 2 & 1 = 0, meaning (4 | 2) & 1, left-to-right
+    let expr = first_select_expr(&sqlite(), "SELECT 4 | 2 & 1");
+    let Expr::BinaryOp { op, left, .. } = &expr else {
+        panic!("expected BinaryOp");
+    };
+    assert_eq!(*op, BinaryOperator::BitwiseAnd, "outer op in SQLite");
+    assert!(
+        matches!(
+            **left,
+            Expr::BinaryOp {
+                op: BinaryOperator::BitwiseOr,
+                ..
+            }
+        ),
+        "left of & should be | in SQLite"
+    );
+
+    // SQLite evaluates 8 & 1 | 2 = 2, meaning (8 & 1) | 2, left-to-right
+    let expr2 = first_select_expr(&sqlite(), "SELECT 8 & 1 | 2");
+    let Expr::BinaryOp {
+        op: op2,
+        left: left2,
+        ..
+    } = &expr2
+    else {
+        panic!("expected BinaryOp");
+    };
+    assert_eq!(*op2, BinaryOperator::BitwiseOr, "outer op in SQLite");
+    assert!(
+        matches!(
+            **left2,
+            Expr::BinaryOp {
+                op: BinaryOperator::BitwiseAnd,
+                ..
+            }
+        ),
+        "left of | should be & in SQLite"
+    );
+
+    // Other dialects: & binds more tightly than |, so 4 | 2 & 1 = 4 | (2 & 1)
+    let generic = TestedDialects::new(vec![Box::new(GenericDialect {})]);
+    let generic_expr = first_select_expr(&generic, "SELECT 4 | 2 & 1");
+    let Expr::BinaryOp { op: op3, right, .. } = &generic_expr else {
+        panic!("expected BinaryOp");
+    };
+    assert_eq!(
+        *op3,
+        BinaryOperator::BitwiseOr,
+        "outer op in other dialects"
+    );
+    assert!(
+        matches!(
+            **right,
+            Expr::BinaryOp {
+                op: BinaryOperator::BitwiseAnd,
+                ..
+            }
+        ),
+        "right of | should be & in other dialects"
+    );
+
+    // SQLite evaluates 2 | 1 << 2 = 12, meaning (2 | 1) << 2, left-to-right
+    let expr3 = first_select_expr(&sqlite(), "SELECT 2 | 1 << 2");
+    let Expr::BinaryOp {
+        op: op4,
+        left: left3,
+        ..
+    } = &expr3
+    else {
+        panic!("expected BinaryOp");
+    };
+    assert_eq!(
+        *op4,
+        BinaryOperator::PGBitwiseShiftLeft,
+        "outer op in SQLite"
+    );
+    assert!(
+        matches!(
+            **left3,
+            Expr::BinaryOp {
+                op: BinaryOperator::BitwiseOr,
+                ..
+            }
+        ),
+        "left of << should be | in SQLite"
+    );
+
+    // SQLite evaluates 3 & 4 >> 1 = 0, meaning (3 & 4) >> 1, left-to-right
+    let expr4 = first_select_expr(&sqlite(), "SELECT 3 & 4 >> 1");
+    let Expr::BinaryOp {
+        op: op5,
+        left: left4,
+        ..
+    } = &expr4
+    else {
+        panic!("expected BinaryOp");
+    };
+    assert_eq!(
+        *op5,
+        BinaryOperator::PGBitwiseShiftRight,
+        "outer op in SQLite"
+    );
+    assert!(
+        matches!(
+            **left4,
+            Expr::BinaryOp {
+                op: BinaryOperator::BitwiseAnd,
+                ..
+            }
+        ),
+        "left of >> should be & in SQLite"
+    );
+}
+
 fn sqlite() -> TestedDialects {
     TestedDialects::new(vec![Box::new(SQLiteDialect {})])
 }
