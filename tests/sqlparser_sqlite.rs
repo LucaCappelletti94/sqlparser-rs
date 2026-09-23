@@ -1024,6 +1024,17 @@ fn parse_n_prefix_not_national_string() {
     all_dialects_where(|d| d.supports_national_string_literal()).verified_stmt("SELECT N'hello'");
 }
 
+#[test]
+fn parse_aggregate_order_by_with_no_args() {
+    sqlite().verified_stmt("SELECT count(ORDER BY a) FROM t");
+    sqlite().verified_stmt("SELECT count(ORDER BY a ASC, b DESC) FROM t");
+
+    // GenericDialect rejects ORDER BY with no preceding argument
+    assert!(TestedDialects::new(vec![Box::new(GenericDialect {})])
+        .parse_sql_statements("SELECT count(ORDER BY a) FROM t")
+        .is_err());
+}
+
 fn sqlite() -> TestedDialects {
     TestedDialects::new(vec![Box::new(SQLiteDialect {})])
 }
