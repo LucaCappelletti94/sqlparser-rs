@@ -150,6 +150,7 @@ fn parse_create_virtual_table() {
             if_not_exists: true,
             module_name,
             module_args,
+            ..
         } => {
             let args = vec![Ident::new("arg1"), Ident::new("arg2")];
             assert_eq!("t", name.to_string());

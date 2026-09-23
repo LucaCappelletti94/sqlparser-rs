@@ -2993,6 +2993,7 @@ fn parse_create_index() {
     let sql = "CREATE INDEX IF NOT EXISTS my_index ON my_table(col1, col2)";
     match pg().verified_stmt(sql) {
         Statement::CreateIndex(CreateIndex {
+            create_token: _,
             name: Some(ObjectName(name)),
             table_name: ObjectName(table_name),
             using,
@@ -3030,6 +3031,7 @@ fn parse_create_anonymous_index() {
     let sql = "CREATE INDEX ON my_table(col1, col2)";
     match pg().verified_stmt(sql) {
         Statement::CreateIndex(CreateIndex {
+            create_token: _,
             name,
             table_name: ObjectName(table_name),
             using,
@@ -3150,6 +3152,7 @@ fn parse_create_indices_with_operator_classes() {
 
             match pg().verified_stmt(&single_column_sql_statement) {
                 Statement::CreateIndex(CreateIndex {
+                    create_token: _,
                     name: Some(ObjectName(name)),
                     table_name: ObjectName(table_name),
                     using: Some(using),
@@ -3179,6 +3182,7 @@ fn parse_create_indices_with_operator_classes() {
 
             match pg().verified_stmt(&multi_column_sql_statement) {
                 Statement::CreateIndex(CreateIndex {
+                    create_token: _,
                     name: Some(ObjectName(name)),
                     table_name: ObjectName(table_name),
                     using: Some(using),
@@ -3263,6 +3267,7 @@ fn parse_create_bloom() {
         "CREATE INDEX bloomidx ON tbloom USING BLOOM (i1, i2, i3) WITH (length = 80, col1 = 2, col2 = 2, col3 = 4)";
     match pg().verified_stmt(sql) {
         Statement::CreateIndex(CreateIndex {
+            create_token: _,
             name: Some(ObjectName(name)),
             table_name: ObjectName(table_name),
             using: Some(using),
@@ -3320,6 +3325,7 @@ fn parse_create_brin() {
     let sql = "CREATE INDEX brin_sensor_data_recorded_at ON sensor_data USING BRIN (recorded_at)";
     match pg().verified_stmt(sql) {
         Statement::CreateIndex(CreateIndex {
+            create_token: _,
             name: Some(ObjectName(name)),
             table_name: ObjectName(table_name),
             using: Some(using),
@@ -3388,6 +3394,7 @@ fn parse_create_index_concurrently() {
     let sql = "CREATE INDEX CONCURRENTLY IF NOT EXISTS my_index ON my_table(col1, col2)";
     match pg().verified_stmt(sql) {
         Statement::CreateIndex(CreateIndex {
+            create_token: _,
             name: Some(ObjectName(name)),
             table_name: ObjectName(table_name),
             using,
@@ -3425,6 +3432,7 @@ fn parse_create_index_with_predicate() {
     let sql = "CREATE INDEX IF NOT EXISTS my_index ON my_table(col1, col2) WHERE col3 IS NULL";
     match pg().verified_stmt(sql) {
         Statement::CreateIndex(CreateIndex {
+            create_token: _,
             name: Some(ObjectName(name)),
             table_name: ObjectName(table_name),
             using,
@@ -3462,6 +3470,7 @@ fn parse_create_index_with_include() {
     let sql = "CREATE INDEX IF NOT EXISTS my_index ON my_table(col1, col2) INCLUDE (col3, col4)";
     match pg().verified_stmt(sql) {
         Statement::CreateIndex(CreateIndex {
+            create_token: _,
             name: Some(ObjectName(name)),
             table_name: ObjectName(table_name),
             using,
@@ -3499,6 +3508,7 @@ fn parse_create_index_with_nulls_distinct() {
     let sql = "CREATE INDEX IF NOT EXISTS my_index ON my_table(col1, col2) NULLS NOT DISTINCT";
     match pg().verified_stmt(sql) {
         Statement::CreateIndex(CreateIndex {
+            create_token: _,
             name: Some(ObjectName(name)),
             table_name: ObjectName(table_name),
             using,
@@ -3534,6 +3544,7 @@ fn parse_create_index_with_nulls_distinct() {
     let sql = "CREATE INDEX IF NOT EXISTS my_index ON my_table(col1, col2) NULLS DISTINCT";
     match pg().verified_stmt(sql) {
         Statement::CreateIndex(CreateIndex {
+            create_token: _,
             name: Some(ObjectName(name)),
             table_name: ObjectName(table_name),
             using,
@@ -6997,6 +7008,7 @@ fn parse_trigger_related_functions() {
     assert_eq!(
         create_table,
         CreateTable {
+            create_token: AttachedToken::empty(),
             or_replace: false,
             temporary: false,
             unlogged: false,

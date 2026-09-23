@@ -309,6 +309,7 @@ impl Dialect for SnowflakeDialect {
         }
 
         if parser.parse_keyword(Keyword::CREATE) {
+            let create_token = parser.get_current_token().clone();
             // possibly CREATE STAGE
             //[ OR  REPLACE ]
             let or_replace = parser.parse_keywords(&[Keyword::OR, Keyword::REPLACE]);
@@ -346,7 +347,14 @@ impl Dialect for SnowflakeDialect {
             } else if parser.parse_keyword(Keyword::TABLE) {
                 return Some(
                     parse_create_table(
-                        or_replace, global, temporary, volatile, transient, iceberg, dynamic,
+                        create_token,
+                        or_replace,
+                        global,
+                        temporary,
+                        volatile,
+                        transient,
+                        iceberg,
+                        dynamic,
                         parser,
                     )
                     .map(Into::into),
@@ -868,6 +876,7 @@ fn parse_alter_session(parser: &mut Parser, set: bool) -> Result<Statement, Pars
 /// <https://docs.snowflake.com/en/sql-reference/sql/create-iceberg-table>
 #[allow(clippy::too_many_arguments)]
 pub fn parse_create_table(
+    create_token: TokenWithSpan,
     or_replace: bool,
     global: Option<bool>,
     temporary: bool,
@@ -881,6 +890,7 @@ pub fn parse_create_table(
     let table_name = parser.parse_object_name(false)?;
 
     let mut builder = CreateTableBuilder::new(table_name)
+        .create_token(create_token.into())
         .or_replace(or_replace)
         .if_not_exists(if_not_exists)
         .temporary(temporary)
