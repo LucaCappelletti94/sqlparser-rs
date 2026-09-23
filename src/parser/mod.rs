@@ -4427,6 +4427,24 @@ impl<'a> Parser<'a> {
                 negated,
             });
         }
+        if self.dialect.supports_in_table_expression()
+            && matches!(self.peek_token_ref().token, Token::Word(_))
+        {
+            let table = self.parse_object_name(false)?;
+            let args = if self.consume_token(&Token::LParen) {
+                let args = self.parse_comma_separated0(Self::parse_function_args, Token::RParen)?;
+                self.expect_token(&Token::RParen)?;
+                Some(args)
+            } else {
+                None
+            };
+            return Ok(Expr::InTable {
+                expr: Box::new(expr),
+                table,
+                args,
+                negated,
+            });
+        }
         if self.dialect.supports_in_unparenthesized_expr()
             && self.peek_token_ref().token != Token::LParen
         {

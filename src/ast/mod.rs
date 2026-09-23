@@ -1002,6 +1002,19 @@ pub enum Expr {
         /// `true` when the `NOT` modifier is present.
         negated: bool,
     },
+    /// `[ NOT ] IN table_name` or `[ NOT ] IN schema.table_name(args)` (SQLite)
+    ///
+    /// See <https://www.sqlite.org/lang_expr.html>
+    InTable {
+        /// Left-hand expression to test for membership.
+        expr: Box<Expr>,
+        /// Table or table-valued function name.
+        table: ObjectName,
+        /// Table-valued function arguments, `None` for a plain table name.
+        args: Option<Vec<FunctionArg>>,
+        /// `true` when the `NOT` modifier is present.
+        negated: bool,
+    },
     /// `<expr> [ NOT ] BETWEEN <low> AND <high>`
     Between {
         /// Expression being compared.
@@ -1823,6 +1836,24 @@ impl fmt::Display for Expr {
                 if *negated { "NOT " } else { "" },
                 array_expr
             ),
+            Expr::InTable {
+                expr,
+                table,
+                args,
+                negated,
+            } => {
+                write!(
+                    f,
+                    "{} {}IN {}",
+                    expr,
+                    if *negated { "NOT " } else { "" },
+                    table
+                )?;
+                if let Some(args) = args {
+                    write!(f, "({})", display_comma_separated(args))?;
+                }
+                Ok(())
+            }
             Expr::Between {
                 expr,
                 negated,

@@ -2605,8 +2605,10 @@ fn parse_in_error() {
     // <expr> IN <expr> is no valid, except in dialects that accept an
     // unparenthesized expression as the IN right-hand side (e.g. ClickHouse).
     let sql = "SELECT * FROM customers WHERE segment in segment";
-    let res =
-        all_dialects_except(|d| d.supports_in_unparenthesized_expr()).parse_sql_statements(sql);
+    let res = all_dialects_except(|d| {
+        d.supports_in_unparenthesized_expr() || d.supports_in_table_expression()
+    })
+    .parse_sql_statements(sql);
     assert_eq!(
         ParserError::ParserError("Expected: (, found: segment".to_string()),
         res.unwrap_err()

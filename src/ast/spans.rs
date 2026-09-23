@@ -1522,6 +1522,16 @@ impl Spanned for Expr {
                 array_expr,
                 negated: _,
             } => expr.span().union(&array_expr.span()),
+            Expr::InTable {
+                expr,
+                negated: _,
+                table,
+                args,
+            } => union_spans(
+                core::iter::once(expr.span())
+                    .chain(core::iter::once(table.span()))
+                    .chain(args.iter().flatten().map(|a| a.span())),
+            ),
             Expr::Between {
                 expr,
                 negated: _,
