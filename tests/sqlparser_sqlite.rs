@@ -1013,6 +1013,25 @@ fn test_cast_empty_type() {
 }
 
 #[test]
+fn parse_keyword_column_aliases() {
+    // SQLite %fallback ID keywords may appear as implicit column aliases.
+    sqlite().one_statement_parses_to("SELECT a view FROM t", "SELECT a AS view FROM t");
+    sqlite().one_statement_parses_to("SELECT 1 end", "SELECT 1 AS end");
+    sqlite().one_statement_parses_to("SELECT 1 exclude", "SELECT 1 AS exclude");
+    sqlite().one_statement_parses_to("SELECT 1 offset", "SELECT 1 AS offset");
+    sqlite().one_statement_parses_to("SELECT 1 with", "SELECT 1 AS with");
+    sqlite().one_statement_parses_to("SELECT 1 fetch", "SELECT 1 AS fetch");
+    // Keywords that SQLite itself rejects as aliases remain reserved.
+    assert!(sqlite().parse_sql_statements("SELECT 1 WHERE").is_err());
+    assert!(sqlite().parse_sql_statements("SELECT 1 GROUP").is_err());
+    // Non-SQLite dialects keep VIEW reserved.
+    let generic = TestedDialects::new(vec![Box::new(GenericDialect {})]);
+    assert!(generic
+        .parse_sql_statements("SELECT a view FROM t")
+        .is_err());
+}
+
+#[test]
 fn parse_n_prefix_not_national_string() {
     // In SQLite, `n'...'` is the identifier `n` followed by a string literal.
     // The string becomes an implicit alias, so `t.n''` round-trips as `t.n AS ''`.
@@ -1022,6 +1041,19 @@ fn parse_n_prefix_not_national_string() {
 
     // Other dialects still tokenize N'...' as a national string literal.
     all_dialects_where(|d| d.supports_national_string_literal()).verified_stmt("SELECT N'hello'");
+}
+
+#[test]
+fn parse_over_as_column_alias_after_function() {
+    // In SQLite, OVER is a fallback identifier so `f() OVER` aliases the result as `over`.
+    sqlite().one_statement_parses_to("SELECT f() OVER", "SELECT f() AS OVER");
+    // A keyword window name is not mistaken for an alias candidate.
+    sqlite().verified_stmt("SELECT f() OVER partition");
+    // Window function syntax still works when OVER is followed by `(`.
+    sqlite().verified_stmt("SELECT f() OVER ()");
+    // Other dialects keep the greedy OVER parse and reject the bare form.
+    let generic = TestedDialects::new(vec![Box::new(GenericDialect {})]);
+    assert!(generic.parse_sql_statements("SELECT f() OVER").is_err());
 }
 
 fn sqlite() -> TestedDialects {
