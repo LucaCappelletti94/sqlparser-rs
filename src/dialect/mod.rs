@@ -1887,6 +1887,12 @@ pub trait Dialect: Debug + Any {
     fn supports_map_literal_with_angle_brackets(&self) -> bool {
         false
     }
+
+    /// Returns true if the dialect allows an `ORDER BY` clause inside an aggregate function
+    /// call with no preceding arguments, e.g. `count(ORDER BY a)`.
+    fn supports_aggregate_order_by_with_empty_args(&self) -> bool {
+        false
+    }
 }
 
 /// Operators for which precedence must be defined.
