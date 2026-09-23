@@ -1453,6 +1453,28 @@ impl fmt::Display for TableIndexHints {
     }
 }
 
+/// SQLite `INDEXED BY` / `NOT INDEXED` hint after a table name.
+///
+/// See <https://www.sqlite.org/lang_indexedby.html>
+#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
+pub enum SqliteIndexedBy {
+    /// Force use of the named index.
+    IndexedBy(Ident),
+    /// Disallow index use entirely.
+    NotIndexed,
+}
+
+impl fmt::Display for SqliteIndexedBy {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            SqliteIndexedBy::IndexedBy(name) => write!(f, "INDEXED BY {name}"),
+            SqliteIndexedBy::NotIndexed => f.write_str("NOT INDEXED"),
+        }
+    }
+}
+
 /// A table name or a parenthesized subquery with an optional alias
 #[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
@@ -1493,6 +1515,9 @@ pub enum TableFactor {
         /// Optional index hints(mysql)
         /// See: <https://dev.mysql.com/doc/refman/8.4/en/index-hints.html>
         index_hints: Vec<TableIndexHints>,
+        /// Optional SQLite `INDEXED BY` or `NOT INDEXED` hint.
+        /// See: <https://www.sqlite.org/lang_indexedby.html>
+        index_hint: Option<SqliteIndexedBy>,
     },
     /// A derived table (a parenthesized subquery), optionally `LATERAL`.
     Derived {
@@ -2224,6 +2249,7 @@ impl fmt::Display for TableFactor {
                 json_path,
                 sample,
                 index_hints,
+                index_hint,
             } => {
                 name.fmt(f)?;
                 if let Some(json_path) = json_path {
@@ -2254,6 +2280,9 @@ impl fmt::Display for TableFactor {
                 }
                 if !index_hints.is_empty() {
                     write!(f, " {}", display_separated(index_hints, " "))?;
+                }
+                if let Some(index_hint) = index_hint {
+                    write!(f, " {index_hint}")?;
                 }
                 if !with_hints.is_empty() {
                     write!(f, " WITH ({})", display_comma_separated(with_hints))?;

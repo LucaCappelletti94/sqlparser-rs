@@ -16762,6 +16762,19 @@ impl<'a> Parser<'a> {
                 vec![]
             };
 
+            // SQLite-specific INDEXED BY / NOT INDEXED:
+            let index_hint = if self.dialect.supports_indexed_by() {
+                if self.parse_keywords(&[Keyword::INDEXED, Keyword::BY]) {
+                    Some(SqliteIndexedBy::IndexedBy(self.parse_identifier()?))
+                } else if self.parse_keywords(&[Keyword::NOT, Keyword::INDEXED]) {
+                    Some(SqliteIndexedBy::NotIndexed)
+                } else {
+                    None
+                }
+            } else {
+                None
+            };
+
             // MSSQL-specific table hints:
             let mut with_hints = vec![];
             if self.parse_keyword(Keyword::WITH) {
@@ -16791,6 +16804,7 @@ impl<'a> Parser<'a> {
                 json_path,
                 sample,
                 index_hints,
+                index_hint,
             };
 
             while let Some(kw) = self.parse_one_of_keywords(&[Keyword::PIVOT, Keyword::UNPIVOT]) {
@@ -16841,6 +16855,7 @@ impl<'a> Parser<'a> {
             json_path: None,
             sample: None,
             index_hints: vec![],
+            index_hint: None,
         })
     }
 

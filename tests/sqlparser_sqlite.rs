@@ -957,6 +957,51 @@ fn parse_pattern_operators_bind_at_like_precedence() {
     }
 }
 
+#[test]
+fn parse_indexed_by() {
+    let indexed = sqlite().verified_stmt("SELECT 1 FROM t INDEXED BY i");
+    match indexed {
+        Statement::Query(q) => {
+            let from = &q.body.as_select().unwrap().from;
+            assert_eq!(from.len(), 1);
+            match &from[0].relation {
+                TableFactor::Table { index_hint, .. } => {
+                    assert_eq!(
+                        *index_hint,
+                        Some(SqliteIndexedBy::IndexedBy(Ident::new("i")))
+                    );
+                }
+                _ => panic!("expected TableFactor::Table"),
+            }
+        }
+        _ => panic!("expected Query"),
+    }
+
+    let not_indexed = sqlite().verified_stmt("SELECT 1 FROM t NOT INDEXED");
+    match not_indexed {
+        Statement::Query(q) => {
+            let from = &q.body.as_select().unwrap().from;
+            match &from[0].relation {
+                TableFactor::Table { index_hint, .. } => {
+                    assert_eq!(*index_hint, Some(SqliteIndexedBy::NotIndexed));
+                }
+                _ => panic!("expected TableFactor::Table"),
+            }
+        }
+        _ => panic!("expected Query"),
+    }
+
+    // INDEXED BY after alias round-trips correctly
+    sqlite().verified_stmt("SELECT 1 FROM t AS x INDEXED BY i");
+
+    // Non-SQLite dialects reject INDEXED BY
+    assert!(sqlparser::parser::Parser::parse_sql(
+        &sqlparser::dialect::GenericDialect {},
+        "SELECT 1 FROM t INDEXED BY i"
+    )
+    .is_err());
+}
+
 fn sqlite() -> TestedDialects {
     TestedDialects::new(vec![Box::new(SQLiteDialect {})])
 }
