@@ -1478,6 +1478,16 @@ pub trait Dialect: Debug + Any {
         false
     }
 
+    /// Returns true if the dialect tokenizes `~~` and `~~*` as
+    /// PostgreSQL-style LIKE pattern-match operators.
+    ///
+    /// When false, `~~` is two consecutive `~` characters (two bitwise-NOT prefixes in SQLite).
+    ///
+    /// See: <https://www.postgresql.org/docs/current/functions-matching.html>
+    fn supports_tilde_like_match_operator(&self) -> bool {
+        true
+    }
+
     /// Returns true if the dialect supports `ORDER BY ALL`.
     /// `ALL` which means all columns of the SELECT clause.
     ///

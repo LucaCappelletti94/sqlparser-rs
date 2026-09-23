@@ -1726,7 +1726,7 @@ impl<'a> Tokenizer<'a> {
                         Some('=') if self.dialect.supports_geometric_types() => {
                             self.consume_for_binop(chars, "~=", Token::TildeEqual)
                         }
-                        Some('~') => {
+                        Some('~') if self.dialect.supports_tilde_like_match_operator() => {
                             chars.next();
                             match chars.peek() {
                                 Some('*') => {
