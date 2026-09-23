@@ -129,4 +129,28 @@ impl Dialect for SQLiteDialect {
     fn supports_numeric_literal_underscores(&self) -> bool {
         true
     }
+
+    fn is_column_alias(&self, kw: &Keyword, _parser: &mut Parser) -> bool {
+        // https://www.sqlite.org/lang_keywords.html
+        !matches!(
+            kw,
+            Keyword::SELECT
+                | Keyword::WHERE
+                | Keyword::GROUP
+                | Keyword::HAVING
+                | Keyword::ORDER
+                | Keyword::LIMIT
+                | Keyword::UNION
+                | Keyword::EXCEPT
+                | Keyword::INTERSECT
+                | Keyword::RETURNING
+                | Keyword::VALUES
+                | Keyword::FROM
+                | Keyword::INTO
+        )
+    }
+
+    fn supports_over_keyword_as_column_alias(&self) -> bool {
+        true
+    }
 }

@@ -1417,6 +1417,12 @@ pub trait Dialect: Debug + Any {
         explicit || self.is_column_alias(kw, parser)
     }
 
+    /// Returns true if `OVER` without a following `(` or plain-identifier window name
+    /// may be used as an implicit column alias rather than starting a window clause.
+    fn supports_over_keyword_as_column_alias(&self) -> bool {
+        false
+    }
+
     /// Returns true if the specified keyword should be parsed as a table factor identifier.
     /// See [keywords::RESERVED_FOR_TABLE_FACTOR]
     fn is_table_factor(&self, kw: &Keyword, _parser: &mut Parser) -> bool {
