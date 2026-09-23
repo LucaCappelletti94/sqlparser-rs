@@ -1024,6 +1024,22 @@ fn parse_n_prefix_not_national_string() {
     all_dialects_where(|d| d.supports_national_string_literal()).verified_stmt("SELECT N'hello'");
 }
 
+#[test]
+fn parse_parenthesized_table_factor() {
+    // SQLite accepts a lone parenthesized table in FROM. The canonical form drops the parens.
+    sqlite().one_statement_parses_to("SELECT * FROM (t)", "SELECT * FROM t");
+    sqlite().one_statement_parses_to("SELECT * FROM f(), (t)", "SELECT * FROM f(), t");
+
+    // Dialects without the flag reject bare parenthesized tables.
+    let err = all_dialects_where(|d| !d.supports_parens_around_table_factor())
+        .parse_sql_statements("SELECT * FROM (t)")
+        .unwrap_err();
+    assert!(
+        err.to_string().contains("Expected: joined table, found: )"),
+        "unexpected error: {err}"
+    );
+}
+
 fn sqlite() -> TestedDialects {
     TestedDialects::new(vec![Box::new(SQLiteDialect {})])
 }
