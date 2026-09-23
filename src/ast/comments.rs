@@ -101,6 +101,46 @@ impl Comments {
         })
     }
 
+    /// Finds the comments lying between the token starting at `location` and
+    /// the token before it, in source order. Returns nothing if no token
+    /// starts at `location`.
+    ///
+    /// # Example
+    /// ```rust
+    /// use sqlparser::{dialect::GenericDialect, parser::Parser, tokenizer::Location};
+    ///
+    /// let sql = "SELECT 1; -- one\n-- two\nSELECT 2";
+    /// let (_, comments) = Parser::parse_sql_with_comments(&GenericDialect, sql).unwrap();
+    ///
+    /// let second = Location::new(3, 1);
+    /// assert_eq!(
+    ///    &comments.preceding(second).map(|c| c.as_str()).collect::<Vec<_>>(),
+    ///    &[" one", " two"]);
+    ///
+    /// // both follow the `;` ending at line 1, column 10
+    /// assert!(comments.preceding(second).all(|c| c.prev_token_end == Some(Location::new(1, 10))));
+    /// ```
+    pub fn preceding(&self, location: Location) -> Iter<'_> {
+        let end = self.0.partition_point(|c| c.span.start < location);
+        let start = self.0[..end]
+            .iter()
+            .rposition(|c| c.next_token_start != Some(location))
+            .map_or(0, |i| i + 1);
+        Iter(self.0[start..end].iter())
+    }
+
+    /// Sets `next_token_start` on the comments offered since the last token.
+    pub(crate) fn end_run(&mut self, next_token_start: Location) {
+        for comment in self
+            .0
+            .iter_mut()
+            .rev()
+            .take_while(|c| c.next_token_start.is_none())
+        {
+            comment.next_token_start = Some(next_token_start);
+        }
+    }
+
     /// Find the index of the first comment starting "before" the given location.
     ///
     /// The returned index is _inclusive_ and within the range of `0..=self.0.len()`.
@@ -157,6 +197,12 @@ pub struct CommentWithSpan {
     pub comment: Comment,
     /// The span of the comment including its markers
     pub span: Span,
+    /// The end of the closest token before the comment, skipping whitespace
+    /// and comments
+    pub prev_token_end: Option<Location>,
+    /// The start of the closest token after the comment, skipping whitespace
+    /// and comments
+    pub next_token_start: Option<Location>,
 }
 
 impl Deref for CommentWithSpan {
@@ -208,7 +254,8 @@ impl Deref for Comment {
     }
 }
 
-/// An opaque iterator implementation over comments served by [Comments::find].
+/// An opaque iterator implementation over comments served by [Comments::find]
+/// and [Comments::preceding].
 pub struct Iter<'a>(slice::Iter<'a, CommentWithSpan>);
 
 impl<'a> Iterator for Iter<'a> {
@@ -241,10 +288,14 @@ mod tests {
                     prefix: "--".into(),
                 },
                 span: Span::new((1, 1).into(), (1, 7).into()),
+                prev_token_end: None,
+                next_token_start: None,
             });
             c.offer(CommentWithSpan {
                 comment: Comment::MultiLine(" hello ".into()),
                 span: Span::new((2, 3).into(), (2, 14).into()),
+                prev_token_end: None,
+                next_token_start: None,
             });
             c.offer(CommentWithSpan {
                 comment: Comment::SingleLine {
@@ -252,10 +303,14 @@ mod tests {
                     prefix: "--".into(),
                 },
                 span: Span::new((2, 14).into(), (2, 21).into()),
+                prev_token_end: None,
+                next_token_start: None,
             });
             c.offer(CommentWithSpan {
                 comment: Comment::MultiLine(" def\n ghi\n jkl\n".into()),
                 span: Span::new((3, 3).into(), (7, 1).into()),
+                prev_token_end: None,
+                next_token_start: None,
             });
             c
         };
