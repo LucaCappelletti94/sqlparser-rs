@@ -1123,7 +1123,8 @@ pub trait Dialect: Debug + Any {
     /// SELECT * FROM (mytable) AS alias;
     /// ```
     ///
-    /// [Snowflake](https://docs.snowflake.com/en/sql-reference/constructs/from)
+    /// [Snowflake](https://docs.snowflake.com/en/sql-reference/constructs/from),
+    /// [SQLite](https://www.sqlite.org/lang_select.html)
     fn supports_parens_around_table_factor(&self) -> bool {
         false
     }

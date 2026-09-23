@@ -129,4 +129,8 @@ impl Dialect for SQLiteDialect {
     fn supports_numeric_literal_underscores(&self) -> bool {
         true
     }
+
+    fn supports_parens_around_table_factor(&self) -> bool {
+        true
+    }
 }
