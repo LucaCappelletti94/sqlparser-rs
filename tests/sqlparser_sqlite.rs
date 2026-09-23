@@ -1024,6 +1024,15 @@ fn parse_n_prefix_not_national_string() {
     all_dialects_where(|d| d.supports_national_string_literal()).verified_stmt("SELECT N'hello'");
 }
 
+#[test]
+fn test_double_tilde_as_bitwise_not() {
+    // In SQLite, ~~a is two bitwise-NOT applications
+    sqlite().one_statement_parses_to("SELECT ~~a FROM t", "SELECT ~ ~ a FROM t");
+    // Dialects that treat ~~ as a binary LIKE operator reject it as a prefix
+    assert!(TestedDialects::new(vec![Box::new(GenericDialect {})])
+        .parse_sql_statements("SELECT ~~a FROM t")
+        .is_err());
+}
 fn sqlite() -> TestedDialects {
     TestedDialects::new(vec![Box::new(SQLiteDialect {})])
 }

@@ -142,4 +142,8 @@ impl Dialect for SQLiteDialect {
     fn supports_national_string_literal(&self) -> bool {
         false
     }
+
+    fn supports_tilde_like_match_operator(&self) -> bool {
+        false
+    }
 }
