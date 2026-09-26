@@ -18,6 +18,9 @@
 #[cfg(not(feature = "std"))]
 use alloc::{boxed::Box, format, string::String, vec::Vec};
 use core::fmt;
+use sqlparser_derive::{
+    SharedClone, SharedDebug, SharedHash, SharedOrd, SharedPartialEq, SharedPartialOrd,
+};
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
@@ -29,7 +32,9 @@ use crate::ast::{display_comma_separated, Expr, ObjectName, StructField, UnionFi
 
 use super::{value::escape_single_quote_string, ColumnDef};
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 /// A member of an ENUM type.
@@ -43,7 +48,9 @@ pub enum EnumMember {
 }
 
 /// SQL data types
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub enum DataType {
@@ -1173,7 +1180,9 @@ impl fmt::Display for BinaryLength {
 /// the syntax used to declare the array.
 ///
 /// For example: Bigquery/Hive use `ARRAY<INT>` whereas snowflake uses ARRAY.
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub enum ArrayElemTypeDef {

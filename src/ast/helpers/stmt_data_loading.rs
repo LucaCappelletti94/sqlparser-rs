@@ -22,6 +22,9 @@
 #[cfg(not(feature = "std"))]
 use alloc::string::String;
 use core::fmt;
+use sqlparser_derive::{
+    SharedClone, SharedDebug, SharedHash, SharedOrd, SharedPartialEq, SharedPartialOrd,
+};
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
@@ -31,7 +34,9 @@ use crate::ast::{Ident, ObjectName, SelectItem};
 #[cfg(feature = "visitor")]
 use sqlparser_derive::{Visit, VisitMut};
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, Eq, SharedPartialOrd, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 /// Parameters for a named stage object used in data loading/unloading.
@@ -50,7 +55,9 @@ pub struct StageParamsObject {
 
 /// This enum enables support for both standard SQL select item expressions
 /// and Snowflake-specific ones for data loading.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, Eq, SharedPartialOrd, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub enum StageLoadSelectItemKind {
@@ -69,7 +76,9 @@ impl fmt::Display for StageLoadSelectItemKind {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, Eq, SharedPartialOrd, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 /// A single item in the `SELECT` list for data loading from staged files.
@@ -122,7 +131,9 @@ impl fmt::Display for StageLoadSelectItem {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 /// A command to stage files to a named stage.

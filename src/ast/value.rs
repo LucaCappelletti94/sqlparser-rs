@@ -17,6 +17,9 @@
 
 #[cfg(not(feature = "std"))]
 use alloc::string::String;
+use sqlparser_derive::{
+    SharedClone, SharedDebug, SharedHash, SharedOrd, SharedPartialEq, SharedPartialOrd,
+};
 
 use core::{
     fmt,
@@ -68,7 +71,7 @@ use sqlparser_derive::{Visit, VisitMut};
 /// let value: Value = value_with_span.into();
 /// ```
 /// A `Value` paired with its source `Span` location.
-#[derive(Debug, Clone, Eq)]
+#[derive(SharedDebug, SharedClone, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(
     feature = "visitor",
@@ -133,7 +136,9 @@ impl DerefMut for ValueWithSpan {
 }
 
 /// Primitive SQL values such as number and string
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub enum Value {
@@ -301,7 +306,9 @@ impl fmt::Display for Value {
 }
 
 /// A dollar-quoted string literal, e.g. `$$...$$` or `$tag$...$tag$`.
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct DollarQuotedString {
@@ -328,7 +335,9 @@ impl fmt::Display for DollarQuotedString {
 ///
 /// See [Value::QuoteDelimitedStringLiteral] and/or
 /// [Value::NationalQuoteDelimitedStringLiteral].
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct QuoteDelimitedString {
@@ -351,7 +360,9 @@ impl fmt::Display for QuoteDelimitedString {
 /// Each variant corresponds to a supported date/time part (for example
 /// `YEAR`, `MONTH`, `DAY`, etc.). The `Custom` variant allows arbitrary
 /// identifiers (e.g. dialect-specific abbreviations).
-#[derive(Debug, Clone, PartialEq, Eq, Ord, PartialOrd, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, Eq, SharedOrd, SharedPartialOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub enum DateTimeField {

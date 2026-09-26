@@ -28,6 +28,9 @@ use helpers::{
     attached_token::AttachedToken,
     stmt_data_loading::{FileStagingCommand, StageLoadSelectItemKind},
 };
+use sqlparser_derive::{
+    SharedClone, SharedDebug, SharedHash, SharedOrd, SharedPartialEq, SharedPartialOrd,
+};
 
 use core::cmp::Ordering;
 use core::ops::{Deref, DerefMut};
@@ -206,7 +209,9 @@ fn format_statement_list(f: &mut fmt::Formatter, statements: &[Statement]) -> fm
 }
 
 /// A item `T` enclosed in a pair of parentheses
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct Parens<T> {
@@ -245,7 +250,7 @@ impl<T> DerefMut for Parens<T> {
 }
 
 /// An identifier, decomposed into its value or character data and the quote style.
-#[derive(Debug, Clone)]
+#[derive(SharedDebug, SharedClone)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Ident {
     /// The value of the identifier without quotes.
@@ -416,7 +421,9 @@ impl VisitMut for Ident {
 }
 
 /// A name of a table, view, custom type, etc., possibly multi-part, i.e. db.schema.obj
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct ObjectName(pub Vec<ObjectNamePart>);
@@ -440,7 +447,9 @@ impl fmt::Display for ObjectName {
 }
 
 /// A single part of an ObjectName
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub enum ObjectNamePart {
@@ -473,7 +482,9 @@ impl fmt::Display for ObjectNamePart {
 /// constructs identifiers.
 ///
 /// - [Snowflake](https://docs.snowflake.com/en/sql-reference/identifier-literal)
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct ObjectNamePartFunction {
@@ -492,7 +503,9 @@ impl fmt::Display for ObjectNamePartFunction {
 
 /// Represents an Array Expression, either
 /// `ARRAY[..]`, or `[..]`
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct Array {
@@ -522,7 +535,9 @@ impl fmt::Display for Array {
 /// The parser does not validate the `<value>`, nor does it ensure
 /// that the `<leading_field>` units >= the units in `<last_field>`,
 /// so the user will have to reject intervals like `HOUR TO YEAR`.
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct Interval {
@@ -584,7 +599,9 @@ impl fmt::Display for Interval {
 /// A field definition within a struct
 ///
 /// [BigQuery]: https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#struct_type
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct StructField {
@@ -615,7 +632,9 @@ impl fmt::Display for StructField {
 /// A field definition within a union
 ///
 /// [DuckDB]: https://duckdb.org/docs/sql/data_types/union.html
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct UnionField {
@@ -634,7 +653,9 @@ impl fmt::Display for UnionField {
 /// A dictionary field within a dictionary.
 ///
 /// [DuckDB]: https://duckdb.org/docs/sql/data_types/struct#creating-structs
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct DictionaryField {
@@ -651,7 +672,9 @@ impl fmt::Display for DictionaryField {
 }
 
 /// Represents a Map expression.
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct Map {
@@ -668,7 +691,9 @@ impl Display for Map {
 /// A map field within a map.
 ///
 /// [DuckDB]: https://duckdb.org/docs/sql/data_types/map.html#creating-maps
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct MapEntry {
@@ -686,7 +711,9 @@ impl fmt::Display for MapEntry {
 
 /// Options for `CAST` / `TRY_CAST`
 /// BigQuery: <https://cloud.google.com/bigquery/docs/reference/standard-sql/format-elements#formatting_syntax>
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub enum CastFormat {
@@ -697,7 +724,9 @@ pub enum CastFormat {
 }
 
 /// An element of a JSON path.
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub enum JsonPathElem {
@@ -732,7 +761,9 @@ pub enum JsonPathElem {
 ///
 /// See <https://docs.snowflake.com/en/user-guide/querying-semistructured>.
 /// See <https://docs.databricks.com/en/sql/language-manual/sql-ref-json-path-expression.html>.
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct JsonPath {
@@ -770,7 +801,9 @@ impl fmt::Display for JsonPath {
 }
 
 /// The syntax used for in a cast expression.
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub enum CastKind {
@@ -820,7 +853,9 @@ impl fmt::Display for ConstraintReferenceMatchKind {
 /// or the comma syntax.
 ///
 /// See <https://docs.snowflake.com/en/sql-reference/functions/extract>
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub enum ExtractSyntax {
@@ -838,7 +873,9 @@ pub enum ExtractSyntax {
 ///
 /// Other dialects either support `CEIL/FLOOR( <expr> [, <scale>])` format or just
 /// `CEIL/FLOOR(<expr>)`.
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub enum CeilFloorKind {
@@ -850,7 +887,9 @@ pub enum CeilFloorKind {
 
 /// A WHEN clause in a CASE expression containing both
 /// the condition and its corresponding result
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct CaseWhen {
@@ -888,7 +927,9 @@ impl fmt::Display for CaseWhen {
 /// of the expression (not bitwise comparison). This means that `Expr` instances
 /// that are semantically equivalent but have different spans (locations in the
 /// source tree) will compare as equal.
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(
     feature = "visitor",
@@ -1412,7 +1453,9 @@ impl Expr {
 }
 
 /// The contents inside the `[` and `]` in a subscript expression.
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub enum Subscript {
@@ -1481,7 +1524,9 @@ impl fmt::Display for Subscript {
 
 /// An element of a [`Expr::CompoundFieldAccess`].
 /// It can be an expression or a subscript.
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub enum AccessExpr {
@@ -1506,7 +1551,9 @@ impl fmt::Display for AccessExpr {
 }
 
 /// A lambda function.
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct LambdaFunction {
@@ -1537,7 +1584,9 @@ impl fmt::Display for LambdaFunction {
 }
 
 /// A parameter to a lambda function, optionally with a data type.
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct LambdaFunctionParameter {
@@ -1598,7 +1647,9 @@ pub enum LambdaSyntax {
 ///
 /// assert_eq!(one.into_iter().chain(many).collect::<Vec<_>>(), vec!["a", "a", "b"] );
 /// ```
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub enum OneOrManyWithParens<T> {
@@ -1635,12 +1686,12 @@ impl<'a, T> IntoIterator for &'a OneOrManyWithParens<T> {
 }
 
 /// Owned iterator implementation of `OneOrManyWithParens`
-#[derive(Debug, Clone)]
+#[derive(SharedDebug, SharedClone)]
 pub struct OneOrManyWithParensIntoIter<T> {
     inner: OneOrManyWithParensIntoIterInner<T>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(SharedDebug, SharedClone)]
 enum OneOrManyWithParensIntoIterInner<T> {
     One(core::iter::Once<T>),
     Many(<Vec<T> as IntoIterator>::IntoIter),
@@ -2303,7 +2354,9 @@ impl fmt::Display for Expr {
 /// - `WindowSpec(WindowSpec)`: An inline window specification, e.g.
 ///   `OVER (PARTITION BY ... ORDER BY ...)`.
 /// - `NamedWindow(Ident)`: A reference to a named window declared elsewhere.
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub enum WindowType {
@@ -2329,7 +2382,9 @@ impl Display for WindowType {
 }
 
 /// A window specification (i.e. `OVER ([window_name] PARTITION BY .. ORDER BY .. etc.)`)
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct WindowSpec {
@@ -2400,7 +2455,9 @@ impl fmt::Display for WindowSpec {
 ///
 /// Note: The parser does not validate the specified bounds; the caller should
 /// reject invalid bounds like `ROWS UNBOUNDED FOLLOWING` before execution.
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct WindowFrame {
@@ -2475,7 +2532,9 @@ impl fmt::Display for NullTreatment {
 }
 
 /// Specifies [WindowFrame]'s `start_bound` and `end_bound`
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub enum WindowFrameBound {
@@ -2616,7 +2675,9 @@ impl fmt::Display for CommentObject {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 /// Password specification variants used in user-related statements.
@@ -2643,7 +2704,9 @@ pub enum Password {
 ///
 /// [BigQuery](https://cloud.google.com/bigquery/docs/reference/standard-sql/procedural-language#case_search_expression)
 /// [Snowflake](https://docs.snowflake.com/en/sql-reference/snowflake-scripting/case)
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct CaseStatement {
@@ -2716,7 +2779,9 @@ impl fmt::Display for CaseStatement {
 /// IF 1=1 SELECT 1 ELSE SELECT 2
 /// ```
 /// [MSSQL](https://learn.microsoft.com/en-us/sql/t-sql/language-elements/if-else-transact-sql?view=sql-server-ver16)
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct IfStatement {
@@ -2768,7 +2833,9 @@ impl fmt::Display for IfStatement {
 /// ```
 ///
 /// [MsSql](https://learn.microsoft.com/en-us/sql/t-sql/language-elements/while-transact-sql)
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct WhileStatement {
@@ -2808,7 +2875,9 @@ impl fmt::Display for WhileStatement {
 ///    FETCH NEXT FROM c1 INTO @var1, @var2;
 /// END
 /// ```
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct ConditionalStatementBlock {
@@ -2857,7 +2926,9 @@ impl fmt::Display for ConditionalStatementBlock {
 }
 
 /// A list of statements in a [ConditionalStatementBlock].
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 /// Statements used inside conditional blocks (`IF`, `WHEN`, `WHILE`).
@@ -2903,7 +2974,9 @@ impl fmt::Display for ConditionalStatements {
 ///     SELECT 2;
 /// END
 /// ```
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct BeginEndStatements {
@@ -2947,7 +3020,9 @@ impl fmt::Display for BeginEndStatements {
 ///
 /// [BigQuery](https://cloud.google.com/bigquery/docs/reference/standard-sql/procedural-language#raise)
 /// [Snowflake](https://docs.snowflake.com/en/sql-reference/snowflake-scripting/raise)
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct RaiseStatement {
@@ -2969,7 +3044,9 @@ impl fmt::Display for RaiseStatement {
 }
 
 /// Represents the error value of a [RaiseStatement].
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub enum RaiseStatementValue {
@@ -2995,7 +3072,9 @@ impl fmt::Display for RaiseStatementValue {
 /// ```
 ///
 /// [MSSQL](https://learn.microsoft.com/en-us/sql/t-sql/language-elements/throw-transact-sql)
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct ThrowStatement {
@@ -3030,7 +3109,9 @@ impl fmt::Display for ThrowStatement {
 /// DECLARE variable_name := 42
 /// DECLARE variable_name DEFAULT 42
 /// ```
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub enum DeclareAssignment {
@@ -3088,7 +3169,9 @@ impl fmt::Display for DeclareAssignment {
 }
 
 /// Represents the type of a `DECLARE` statement.
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub enum DeclareType {
@@ -3146,7 +3229,9 @@ impl fmt::Display for DeclareType {
 /// [PostgreSQL]: https://www.postgresql.org/docs/current/sql-declare.html
 /// [Snowflake]: https://docs.snowflake.com/en/sql-reference/snowflake-scripting/declare
 /// [BigQuery]: https://cloud.google.com/bigquery/docs/reference/standard-sql/procedural-language#declare
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct Declare {
@@ -3241,7 +3326,9 @@ impl fmt::Display for Declare {
 }
 
 /// Sql options of a `CREATE TABLE` statement.
-#[derive(Debug, Default, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, Default, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 /// Options allowed within a `CREATE TABLE` statement.
@@ -3285,7 +3372,9 @@ impl fmt::Display for CreateTableOptions {
 /// ```sql
 /// [FROM] table
 /// ```
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub enum FromTable {
@@ -3308,7 +3397,9 @@ impl Display for FromTable {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 /// Variants for the `SET` family of statements.
@@ -3506,7 +3597,9 @@ impl Display for Set {
 ///
 /// Snowflake: <https://docs.snowflake.com/en/sql-reference/snowflake-scripting/exception>
 /// BigQuery: <https://cloud.google.com/bigquery/docs/reference/standard-sql/procedural-language#beginexceptionend>
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct ExceptionWhen {
@@ -3539,7 +3632,9 @@ impl Display for ExceptionWhen {
 /// - Hive: `ANALYZE TABLE t [PARTITION (...)] COMPUTE STATISTICS [NOSCAN] [FOR COLUMNS [col1, ...]] [CACHE METADATA]`
 /// - PostgreSQL: `ANALYZE [VERBOSE] [t [(col1, ...)]]` See <https://www.postgresql.org/docs/current/sql-analyze.html>
 /// - General: `ANALYZE [TABLE] t`
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct Analyze {
@@ -3600,7 +3695,9 @@ impl fmt::Display for Analyze {
 
 /// A top-level statement (SELECT, INSERT, CREATE, etc.)
 #[allow(clippy::large_enum_variant)]
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(
     feature = "visitor",
@@ -5091,7 +5188,9 @@ impl From<ddl::Msck> for Statement {
 /// ```
 ///
 /// - [Snowflake](https://docs.snowflake.com/en/sql-reference/sql/grant-ownership#optional-parameters)
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub enum CurrentGrantsKind {
@@ -5110,7 +5209,9 @@ impl fmt::Display for CurrentGrantsKind {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 /// `RAISERROR` options
@@ -6566,7 +6667,9 @@ impl fmt::Display for Statement {
 ///     [ MINVALUE minvalue | NO MINVALUE ] [ MAXVALUE maxvalue | NO MAXVALUE ]
 ///     [ START [ WITH ] start ] [ CACHE cache ] [ [ NO ] CYCLE ]
 /// ```
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub enum SequenceOptions {
@@ -6626,7 +6729,9 @@ impl fmt::Display for SequenceOptions {
 }
 
 /// Assignment for a `SET` statement (name [=|TO] value)
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct SetAssignment {
@@ -6653,7 +6758,9 @@ impl fmt::Display for SetAssignment {
 /// Target of a `TRUNCATE TABLE` command
 ///
 /// Note this is its own struct because `visit_relation` requires an `ObjectName` (not a `Vec<ObjectName>`)
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct TruncateTableTarget {
@@ -6690,7 +6797,9 @@ impl fmt::Display for TruncateTableTarget {
 /// A `LOCK` statement.
 ///
 /// See <https://www.postgresql.org/docs/current/sql-lock.html>
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Lock {
@@ -6718,7 +6827,9 @@ impl fmt::Display for Lock {
 /// Target of a `LOCK TABLE` command
 ///
 /// See <https://www.postgresql.org/docs/current/sql-lock.html>
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct LockTableTarget {
@@ -6747,7 +6858,9 @@ impl fmt::Display for LockTableTarget {
 /// PostgreSQL lock modes for `LOCK TABLE`.
 ///
 /// See <https://www.postgresql.org/docs/current/sql-lock.html>
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub enum LockTableMode {
@@ -6787,7 +6900,9 @@ impl fmt::Display for LockTableMode {
 
 /// PostgreSQL identity option for TRUNCATE table
 /// [ RESTART IDENTITY | CONTINUE IDENTITY ]
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub enum TruncateIdentityOption {
@@ -6799,7 +6914,9 @@ pub enum TruncateIdentityOption {
 
 /// Cascade/restrict option for Postgres TRUNCATE table, MySQL GRANT/REVOKE, etc.
 /// [ CASCADE | RESTRICT ]
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub enum CascadeOption {
@@ -6819,7 +6936,9 @@ impl Display for CascadeOption {
 }
 
 /// Transaction started with [ TRANSACTION | WORK | TRAN ]
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub enum BeginTransactionKind {
@@ -6844,7 +6963,9 @@ impl Display for BeginTransactionKind {
 
 /// Can use to describe options in  create sequence or table column type identity
 /// [ MINVALUE minvalue | NO MINVALUE ] [ MAXVALUE maxvalue | NO MAXVALUE ]
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub enum MinMaxValue {
@@ -6856,7 +6977,9 @@ pub enum MinMaxValue {
     Some(Expr),
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 #[non_exhaustive]
@@ -6868,7 +6991,9 @@ pub enum OnInsert {
     OnConflict(OnConflict),
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 /// Optional aliases for `INSERT` targets: row alias and optional column aliases.
@@ -6879,7 +7004,9 @@ pub struct InsertAliases {
     pub col_aliases: Option<Vec<Ident>>,
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 /// Optional alias for an `INSERT` table; i.e. the table to be inserted into
@@ -6890,7 +7017,9 @@ pub struct TableAliasWithoutColumns {
     pub alias: Ident,
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 /// `ON CONFLICT` clause representation.
@@ -6900,7 +7029,9 @@ pub struct OnConflict {
     /// Action to take when a conflict occurs.
     pub action: OnConflictAction,
 }
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 /// Target specification for an `ON CONFLICT` clause.
@@ -6910,7 +7041,9 @@ pub enum ConflictTarget {
     /// Target specified as a named constraint.
     OnConstraint(ObjectName),
 }
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 /// Action to perform when an `ON CONFLICT` target is matched.
@@ -6921,7 +7054,9 @@ pub enum OnConflictAction {
     DoUpdate(DoUpdate),
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 /// Details for `DO UPDATE` action of an `ON CONFLICT` clause.
@@ -6984,7 +7119,9 @@ impl fmt::Display for OnConflictAction {
 }
 
 /// Privileges granted in a GRANT statement or revoked in a REVOKE statement.
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub enum Privileges {
@@ -7021,7 +7158,9 @@ impl fmt::Display for Privileges {
 }
 
 /// Specific direction for FETCH statement
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub enum FetchDirection {
@@ -7114,7 +7253,9 @@ impl fmt::Display for FetchDirection {
 /// The "position" for a FETCH statement.
 ///
 /// [MsSql](https://learn.microsoft.com/en-us/sql/t-sql/language-elements/fetch-transact-sql)
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub enum FetchPosition {
@@ -7136,7 +7277,9 @@ impl fmt::Display for FetchPosition {
 }
 
 /// A privilege on a database object (table, sequence, etc.).
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub enum Action {
@@ -7346,7 +7489,9 @@ impl fmt::Display for Action {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 /// See <https://docs.snowflake.com/en/sql-reference/sql/grant-privilege>
@@ -7412,7 +7557,9 @@ impl fmt::Display for ActionCreateObjectType {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 /// See <https://docs.snowflake.com/en/sql-reference/sql/grant-privilege>
@@ -7457,7 +7604,9 @@ impl fmt::Display for ActionApplyType {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 /// See <https://docs.snowflake.com/en/sql-reference/sql/grant-privilege>
@@ -7487,7 +7636,9 @@ impl fmt::Display for ActionExecuteObjectType {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 /// See <https://docs.snowflake.com/en/sql-reference/sql/grant-privilege>
@@ -7523,7 +7674,9 @@ impl fmt::Display for ActionManageType {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 /// See <https://docs.snowflake.com/en/sql-reference/sql/grant-privilege>
@@ -7550,7 +7703,9 @@ impl fmt::Display for ActionModifyType {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 /// See <https://docs.snowflake.com/en/sql-reference/sql/grant-privilege>
@@ -7575,7 +7730,9 @@ impl fmt::Display for ActionMonitorType {
 }
 
 /// The principal that receives the privileges
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct Grantee {
@@ -7609,7 +7766,9 @@ impl fmt::Display for Grantee {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 /// The kind of principal receiving privileges.
@@ -7635,7 +7794,9 @@ pub enum GranteesType {
 }
 
 /// Users/roles designated in a GRANT/REVOKE
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub enum GranteeName {
@@ -7662,7 +7823,9 @@ impl fmt::Display for GranteeName {
 }
 
 /// Objects on which privileges are granted in a GRANT statement.
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub enum GrantObjects {
@@ -7929,7 +8092,9 @@ impl fmt::Display for GrantObjects {
 /// A `DENY` statement
 ///
 /// [MsSql](https://learn.microsoft.com/en-us/sql/t-sql/statements/deny-transact-sql)
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct DenyStatement {
@@ -7963,7 +8128,9 @@ impl fmt::Display for DenyStatement {
 }
 
 /// SQL assignment `foo = expr` as used in SQLUpdate
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct Assignment {
@@ -7982,7 +8149,9 @@ impl fmt::Display for Assignment {
 /// Left-hand side of an assignment in an UPDATE statement,
 /// e.g. `foo` in `foo = 5` (ColumnName assignment) or
 /// `(a, b)` in `(a, b) = (1, 2)` (Tuple assignment).
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub enum AssignmentTarget {
@@ -8001,7 +8170,9 @@ impl fmt::Display for AssignmentTarget {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 /// Expression forms allowed as a function argument.
@@ -8039,7 +8210,9 @@ impl fmt::Display for FunctionArgExpr {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 /// Operator used to separate function arguments
@@ -8074,7 +8247,9 @@ impl fmt::Display for FunctionArgOperator {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 /// Forms of function arguments (named, expression-named, or positional).
@@ -8150,7 +8325,9 @@ fn fmt_named_function_arg(
     }
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 /// Which cursor(s) to close.
@@ -8174,7 +8351,9 @@ impl fmt::Display for CloseCursor {
 }
 
 /// A Drop Domain statement
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct DropDomain {
@@ -8189,7 +8368,9 @@ pub struct DropDomain {
 /// A constant of form `<data_type> 'value'`.
 /// This can represent ANSI SQL `DATE`, `TIME`, and `TIMESTAMP` literals (such as `DATE '2020-01-01'`),
 /// as well as constants of other types (a non-standard PostgreSQL extension).
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct TypedString {
@@ -8234,7 +8415,9 @@ impl fmt::Display for TypedString {
 }
 
 /// A function call
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct Function {
@@ -8323,7 +8506,9 @@ impl fmt::Display for Function {
 }
 
 /// The arguments passed to a function call.
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub enum FunctionArguments {
@@ -8349,7 +8534,9 @@ impl fmt::Display for FunctionArguments {
 }
 
 /// This represents everything inside the parentheses when calling a function.
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct FunctionArgumentList {
@@ -8377,7 +8564,9 @@ impl fmt::Display for FunctionArgumentList {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 /// Clauses that can appear inside a function argument list.
@@ -8456,7 +8645,9 @@ impl fmt::Display for FunctionArgumentClause {
 }
 
 /// A method call
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct Method {
@@ -8630,7 +8821,9 @@ impl fmt::Display for FileFormat {
 }
 
 /// The `ON OVERFLOW` clause of a LISTAGG invocation
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub enum ListAggOnOverflow {
@@ -8668,7 +8861,9 @@ impl fmt::Display for ListAggOnOverflow {
 }
 
 /// The `HAVING` clause in a call to `ANY_VALUE` on BigQuery.
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct HavingBound(pub HavingBoundKind, pub Expr);
@@ -8780,7 +8975,9 @@ impl fmt::Display for KillType {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 /// Distribution style options for Hive tables.
@@ -8803,7 +9000,9 @@ pub enum HiveDistributionStyle {
     NONE,
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 /// Row format specification for Hive tables (SERDE or DELIMITED).
@@ -8820,7 +9019,9 @@ pub enum HiveRowFormat {
     },
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 /// Format specification for `LOAD DATA` Hive operations.
@@ -8831,7 +9032,9 @@ pub struct HiveLoadDataFormat {
     pub input_format: Expr,
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 /// A single row delimiter specification for Hive `ROW FORMAT`.
@@ -8927,7 +9130,9 @@ impl fmt::Display for DescribeAlias {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 #[allow(clippy::large_enum_variant)]
@@ -8956,7 +9161,9 @@ pub enum HiveIOFormat {
     },
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash, Default)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash, Default,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 /// Hive table format and storage-related options.
@@ -8971,7 +9178,9 @@ pub struct HiveFormat {
     pub location: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 /// A clustered index column specification.
@@ -8993,7 +9202,9 @@ impl fmt::Display for ClusteredIndex {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 /// Clustered options used for `CREATE TABLE` clustered/indexed storage.
@@ -9037,7 +9248,9 @@ pub enum PartitionRangeDirection {
     Right,
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 /// SQL option syntax used in table and server definitions.
@@ -9146,7 +9359,9 @@ impl fmt::Display for SqlOption {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, Eq, SharedHash, SharedPartialOrd, SharedOrd,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 /// Storage type options for a tablespace.
@@ -9157,7 +9372,9 @@ pub enum StorageType {
     Memory,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, Eq, SharedHash, SharedPartialOrd, SharedOrd,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 /// MySql TableSpace option
@@ -9169,7 +9386,9 @@ pub struct TablespaceOption {
     pub storage: Option<StorageType>,
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 /// A key/value identifier pair used for secret or key-based options.
@@ -9189,7 +9408,9 @@ impl fmt::Display for SecretOption {
 /// A `CREATE SERVER` statement.
 ///
 /// [PostgreSQL Documentation](https://www.postgresql.org/docs/current/sql-createserver.html)
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct CreateServerStatement {
@@ -9243,7 +9464,9 @@ impl fmt::Display for CreateServerStatement {
 }
 
 /// A key/value entry in a Postgres `OPTIONS ( ... )` clause.
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct CreateServerOption {
@@ -9259,7 +9482,9 @@ impl fmt::Display for CreateServerOption {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 /// Options supported by DuckDB for `ATTACH DATABASE`.
@@ -9386,7 +9611,9 @@ impl fmt::Display for TransactionModifier {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 /// Filter forms usable in SHOW statements.
@@ -9413,7 +9640,9 @@ impl fmt::Display for ShowStatementFilter {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 /// Clause types used with SHOW ... IN/FROM.
@@ -9495,7 +9724,9 @@ impl fmt::Display for crate::ast::MysqlInsertPriority {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 /// Source for the `COPY` command: a table or a query.
@@ -9512,7 +9743,9 @@ pub enum CopySource {
     Query(Box<Query>),
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 /// Target for the `COPY` command: STDIN, STDOUT, a file, or a program.
@@ -9565,7 +9798,9 @@ pub enum OnCommit {
 /// An option in `COPY` statement.
 ///
 /// <https://www.postgresql.org/docs/14/sql-copy.html>
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub enum CopyOption {
@@ -9620,7 +9855,9 @@ impl fmt::Display for CopyOption {
 ///
 /// [PostgreSQL](https://www.postgresql.org/docs/8.4/sql-copy.html)
 /// [Redshift](https://docs.aws.amazon.com/redshift/latest/dg/r_COPY-alphabetical-parm-list.html)
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub enum CopyLegacyOption {
@@ -9826,7 +10063,9 @@ impl fmt::Display for CopyLegacyOption {
 /// ```sql
 /// SIZE \[ MB | GB \]
 /// ```
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct FileSize {
@@ -9847,7 +10086,9 @@ impl fmt::Display for FileSize {
 }
 
 /// Units for `FileSize` (MB or GB).
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub enum FileSizeUnit {
@@ -9871,7 +10112,9 @@ impl fmt::Display for FileSizeUnit {
 /// ```sql
 /// PARTITION BY ( column_name [, ... ] ) [ INCLUDE ]
 /// ```
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct UnloadPartitionBy {
@@ -9895,7 +10138,9 @@ impl fmt::Display for UnloadPartitionBy {
 /// An `IAM_ROLE` option in the AWS ecosystem
 ///
 /// [Redshift COPY](https://docs.aws.amazon.com/redshift/latest/dg/copy-parameters-authorization.html#copy-iam-role)
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub enum IamRoleKind {
@@ -9917,7 +10162,9 @@ impl fmt::Display for IamRoleKind {
 /// A `CSV` option in `COPY` statement before PostgreSQL version 9.0.
 ///
 /// <https://www.postgresql.org/docs/8.4/sql-copy.html>
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub enum CopyLegacyCsvOption {
@@ -10077,7 +10324,9 @@ impl fmt::Display for ContextModifier {
 }
 
 /// Function describe in DROP FUNCTION.
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum DropFunctionOption {
     /// `RESTRICT` option for DROP FUNCTION.
@@ -10096,7 +10345,9 @@ impl fmt::Display for DropFunctionOption {
 }
 
 /// Generic function description for DROP FUNCTION and CREATE TRIGGER.
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct FunctionDesc {
@@ -10117,7 +10368,9 @@ impl fmt::Display for FunctionDesc {
 }
 
 /// Function argument in CREATE OR DROP FUNCTION.
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct OperateFunctionArg {
@@ -10170,7 +10423,9 @@ impl fmt::Display for OperateFunctionArg {
 }
 
 /// The mode of an argument in CREATE FUNCTION.
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub enum ArgMode {
@@ -10196,7 +10451,9 @@ impl fmt::Display for ArgMode {
 }
 
 /// These attributes inform the query optimizer about the behavior of the function.
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub enum FunctionBehavior {
@@ -10221,7 +10478,9 @@ impl fmt::Display for FunctionBehavior {
 /// Security attribute for functions: SECURITY DEFINER or SECURITY INVOKER.
 ///
 /// [PostgreSQL](https://www.postgresql.org/docs/current/sql-createfunction.html)
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub enum FunctionSecurity {
@@ -10243,7 +10502,9 @@ impl fmt::Display for FunctionSecurity {
 /// Value for a SET configuration parameter in a CREATE FUNCTION statement.
 ///
 /// [PostgreSQL](https://www.postgresql.org/docs/current/sql-createfunction.html)
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub enum FunctionSetValue {
@@ -10258,7 +10519,9 @@ pub enum FunctionSetValue {
 /// A SET configuration_parameter clause in a CREATE FUNCTION statement.
 ///
 /// [PostgreSQL](https://www.postgresql.org/docs/current/sql-createfunction.html)
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct FunctionDefinitionSetParam {
@@ -10282,7 +10545,9 @@ impl fmt::Display for FunctionDefinitionSetParam {
 }
 
 /// These attributes describe the behavior of the function when called with a null argument.
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub enum FunctionCalledOnNull {
@@ -10305,7 +10570,9 @@ impl fmt::Display for FunctionCalledOnNull {
 }
 
 /// If it is safe for PostgreSQL to call the function from multiple threads at once
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub enum FunctionParallel {
@@ -10330,7 +10597,9 @@ impl fmt::Display for FunctionParallel {
 /// [BigQuery] Determinism specifier used in a UDF definition.
 ///
 /// [BigQuery]: https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language#syntax_11
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub enum FunctionDeterminismSpecifier {
@@ -10359,7 +10628,9 @@ impl fmt::Display for FunctionDeterminismSpecifier {
 /// [BigQuery]: https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language#syntax_11
 /// [PostgreSQL]: https://www.postgresql.org/docs/15/sql-createfunction.html
 /// [MsSql]: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-function-transact-sql
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub enum CreateFunctionBody {
@@ -10453,7 +10724,9 @@ pub enum CreateFunctionBody {
     AsReturnSelect(Select),
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 /// `USING` clause options for `CREATE FUNCTION` (e.g., JAR, FILE, ARCHIVE).
@@ -10481,7 +10754,9 @@ impl fmt::Display for CreateFunctionUsing {
 ///
 /// See [Create Macro - DuckDB](https://duckdb.org/docs/sql/statements/create_macro)
 /// for more details
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct MacroArg {
@@ -10511,7 +10786,9 @@ impl fmt::Display for MacroArg {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 /// Definition for a DuckDB macro: either an expression or a table-producing query.
@@ -10535,7 +10812,9 @@ impl fmt::Display for MacroDefinition {
 /// Schema possible naming variants ([1]).
 ///
 /// [1]: https://jakewheat.github.io/sql-overview/sql-2016-foundation-grammar.html#schema-definition
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub enum SchemaName {
@@ -10566,7 +10845,9 @@ impl fmt::Display for SchemaName {
 /// Fulltext search modifiers ([1]).
 ///
 /// [1]: https://dev.mysql.com/doc/refman/8.0/en/fulltext-search.html#function_match
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub enum SearchModifier {
@@ -10602,7 +10883,9 @@ impl fmt::Display for SearchModifier {
 }
 
 /// Represents a `LOCK TABLE` clause with optional alias and lock type.
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct LockTable {
@@ -10631,7 +10914,9 @@ impl fmt::Display for LockTable {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 /// The type of lock used in `LOCK TABLE` statements.
@@ -10669,7 +10954,9 @@ impl fmt::Display for LockTableType {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 /// Hive-specific `SET LOCATION` helper used in some `LOAD DATA` statements.
@@ -10691,7 +10978,9 @@ impl fmt::Display for HiveSetLocation {
 
 /// MySQL `ALTER TABLE` only  [FIRST | AFTER column_name]
 #[allow(clippy::large_enum_variant)]
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 /// MySQL `ALTER TABLE` column position specifier: `FIRST` or `AFTER <column>`.
@@ -10712,7 +11001,9 @@ impl Display for MySQLColumnPosition {
 }
 
 /// MySQL `CREATE VIEW` algorithm parameter: [ALGORITHM = {UNDEFINED | MERGE | TEMPTABLE}]
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 /// MySQL `CREATE VIEW` algorithm options.
@@ -10735,7 +11026,9 @@ impl Display for CreateViewAlgorithm {
     }
 }
 /// MySQL `CREATE VIEW` security parameter: [SQL SECURITY { DEFINER | INVOKER }]
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 /// MySQL `CREATE VIEW` SQL SECURITY options.
@@ -10758,7 +11051,9 @@ impl Display for CreateViewSecurity {
 /// [MySQL] `CREATE VIEW` additional parameters
 ///
 /// [MySQL]: https://dev.mysql.com/doc/refman/9.1/en/create-view.html
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct CreateViewParams {
@@ -10790,7 +11085,9 @@ impl Display for CreateViewParams {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 /// Key/Value, where the value is a (optionally named) list of identifiers
@@ -10813,7 +11110,9 @@ pub struct NamedParenthesizedList {
 ///
 /// <https://docs.snowflake.com/en/sql-reference/sql/create-table>
 /// <https://docs.snowflake.com/en/user-guide/security-row-intro>
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct RowAccessPolicy {
@@ -10844,7 +11143,9 @@ impl Display for RowAccessPolicy {
 /// Snowflake `[ WITH ] STORAGE LIFECYCLE POLICY <policy_name> ON ( <col_name> [ , ... ] )`
 ///
 /// <https://docs.snowflake.com/en/sql-reference/sql/create-table>
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct StorageLifecyclePolicy {
@@ -10868,7 +11169,9 @@ impl Display for StorageLifecyclePolicy {
 /// Snowflake `WITH TAG ( tag_name = '<tag_value>', ...)`
 ///
 /// <https://docs.snowflake.com/en/sql-reference/sql/create-table>
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct Tag {
@@ -10894,7 +11197,9 @@ impl Display for Tag {
 /// Snowflake `WITH CONTACT ( purpose = contact [ , purpose = contact ...] )`
 ///
 /// <https://docs.snowflake.com/en/sql-reference/sql/create-database>
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct ContactEntry {
@@ -10911,7 +11216,9 @@ impl Display for ContactEntry {
 }
 
 /// Helper to indicate if a comment includes the `=` in the display form
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub enum CommentDef {
@@ -10944,7 +11251,9 @@ impl Display for CommentDef {
 /// let items = WrappedCollection::NoWrapping(vec!["one", "two", "three"]);
 /// assert_eq!("one, two, three", items.to_string());
 /// ```
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub enum WrappedCollection<T> {
@@ -10993,7 +11302,9 @@ where
 ///
 /// VACUUM (VERBOSE, ANALYZE ON, PARALLEL 10) my_table;
 /// ```
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct UtilityOption {
@@ -11016,7 +11327,9 @@ impl Display for UtilityOption {
 /// Represents the different options available for `SHOW`
 /// statements to filter the results. Example from Snowflake:
 /// <https://docs.snowflake.com/en/sql-reference/sql/show-tables>
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct ShowStatementOptions {
@@ -11067,7 +11380,9 @@ impl Display for ShowStatementOptions {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 /// Where a `SHOW` filter appears relative to the main clause.
@@ -11078,7 +11393,9 @@ pub enum ShowStatementFilterPosition {
     Suffix(ShowStatementFilter), // For example: SHOW COLUMNS IN tbl LIKE '%name%'
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 /// Parent object types usable with `SHOW ... IN <parent>` clauses.
@@ -11107,7 +11424,9 @@ impl fmt::Display for ShowStatementInParentType {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 /// Represents a `SHOW ... IN` clause with optional parent qualifier and name.
@@ -11135,7 +11454,9 @@ impl fmt::Display for ShowStatementIn {
 }
 
 /// A Show Charset statement
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct ShowCharset {
@@ -11161,7 +11482,9 @@ impl fmt::Display for ShowCharset {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 /// Options for a `SHOW OBJECTS` statement.
@@ -11181,7 +11504,9 @@ pub struct ShowObjects {
 /// ```
 ///
 /// <https://learn.microsoft.com/en-us/sql/t-sql/functions/json-object-transact-sql?view=sql-server-ver16#json_null_clause>
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub enum JsonNullClause {
@@ -11206,7 +11531,9 @@ impl Display for JsonNullClause {
 /// ```sql
 /// JSON_OBJECT('a': 1 RETURNING jsonb)
 /// ```
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct JsonReturningClause {
@@ -11221,7 +11548,9 @@ impl Display for JsonReturningClause {
 }
 
 /// rename object definition
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct RenameTable {
@@ -11239,7 +11568,9 @@ impl fmt::Display for RenameTable {
 }
 
 /// Represents the referenced table in an `INSERT INTO` statement
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub enum TableObject {
@@ -11280,7 +11611,9 @@ impl fmt::Display for TableObject {
 }
 
 /// Represents a SET SESSION AUTHORIZATION statement
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct SetSessionAuthorizationParam {
@@ -11297,7 +11630,9 @@ impl fmt::Display for SetSessionAuthorizationParam {
 }
 
 /// Represents the parameter kind for SET SESSION AUTHORIZATION
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub enum SetSessionAuthorizationParamKind {
@@ -11317,7 +11652,9 @@ impl fmt::Display for SetSessionAuthorizationParamKind {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 /// Kind of session parameter being set by `SET SESSION`.
@@ -11343,7 +11680,9 @@ impl fmt::Display for SetSessionParamKind {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 /// Generic `SET SESSION` parameter represented as name(s) and value.
@@ -11360,7 +11699,9 @@ impl fmt::Display for SetSessionParamGeneric {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 /// `IDENTITY_INSERT` session parameter for a specific object.
@@ -11377,7 +11718,9 @@ impl fmt::Display for SetSessionParamIdentityInsert {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 /// Offsets-related session parameter with keywords and a value.
@@ -11399,7 +11742,9 @@ impl fmt::Display for SetSessionParamOffsets {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 /// Statistics-related session parameter specifying topic and value.
@@ -11416,7 +11761,9 @@ impl fmt::Display for SetSessionParamStatistics {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 /// Topics available for session statistics configuration.
@@ -11442,7 +11789,9 @@ impl fmt::Display for SessionParamStatsTopic {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 /// Value for a session boolean-like parameter (ON/OFF).
@@ -11525,7 +11874,9 @@ pub enum CopyIntoSnowflakeKind {
     Location,
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 /// `PRINT` statement for producing debug/output messages.
@@ -11543,7 +11894,9 @@ impl fmt::Display for PrintStatement {
 /// The type of `WAITFOR` statement (MSSQL).
 ///
 /// See: <https://learn.microsoft.com/en-us/sql/t-sql/language-elements/waitfor-transact-sql>
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub enum WaitForType {
@@ -11565,7 +11918,9 @@ impl fmt::Display for WaitForType {
 /// MSSQL `WAITFOR` statement.
 ///
 /// See: <https://learn.microsoft.com/en-us/sql/t-sql/language-elements/waitfor-transact-sql>
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct WaitForStatement {
@@ -11585,7 +11940,9 @@ impl fmt::Display for WaitForStatement {
 ///
 /// [MsSql triggers](https://learn.microsoft.com/en-us/sql/t-sql/statements/create-trigger-transact-sql)
 /// [MsSql functions](https://learn.microsoft.com/en-us/sql/t-sql/statements/create-function-transact-sql)
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct ReturnStatement {
@@ -11603,7 +11960,9 @@ impl fmt::Display for ReturnStatement {
 }
 
 /// Variants of a `RETURN` statement
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub enum ReturnStatementValue {
@@ -11612,7 +11971,9 @@ pub enum ReturnStatementValue {
 }
 
 /// Represents an `OPEN` statement.
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct OpenStatement {
@@ -11629,7 +11990,9 @@ impl fmt::Display for OpenStatement {
 /// Specifies Include / Exclude NULL within UNPIVOT command.
 /// For example
 /// `UNPIVOT (column1 FOR new_column IN (col3, col4, col5, col6))`
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub enum NullInclusion {
@@ -11655,7 +12018,9 @@ impl fmt::Display for NullInclusion {
 /// <value> MEMBER OF(<array>)
 /// ```
 /// [MySQL](https://dev.mysql.com/doc/refman/8.4/en/json-search-functions.html#operator_member-of)
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct MemberOf {
@@ -11671,7 +12036,9 @@ impl fmt::Display for MemberOf {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 /// Represents an `EXPORT DATA` statement.
@@ -11711,7 +12078,9 @@ impl fmt::Display for ExportData {
 /// ```
 ///
 /// [Snowflake](https://docs.snowflake.com/en/sql-reference/sql/create-user)
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct CreateUser {
@@ -11760,7 +12129,9 @@ impl fmt::Display for CreateUser {
 /// Snowflake-specific statement to create a virtual warehouse.
 ///
 /// See <https://docs.snowflake.com/en/sql-reference/sql/create-warehouse>
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct CreateWarehouse {
@@ -11803,7 +12174,9 @@ impl fmt::Display for CreateWarehouse {
 /// ```sql
 /// ALTER USER <role_specification> [ WITH ] option [ ... ]
 /// ```
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct AlterUser {
@@ -11851,7 +12224,9 @@ pub struct AlterUser {
 /// ```sql
 /// ALTER USER [ IF EXISTS ] [ <name> ] ADD DELEGATED AUTHORIZATION OF ROLE <role_name> TO SECURITY INTEGRATION <integration_name>
 /// ```
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct AlterUserAddRoleDelegation {
@@ -11864,7 +12239,9 @@ pub struct AlterUserAddRoleDelegation {
 /// ```sql
 /// ALTER USER [ IF EXISTS ] [ <name> ] REMOVE DELEGATED { AUTHORIZATION OF ROLE <role_name> | AUTHORIZATIONS } FROM SECURITY INTEGRATION <integration_name>
 /// ```
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct AlterUserRemoveRoleDelegation {
@@ -11877,7 +12254,9 @@ pub struct AlterUserRemoveRoleDelegation {
 /// ```sql
 /// ADD MFA METHOD OTP [ COUNT = number ]
 /// ```
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct AlterUserAddMfaMethodOtp {
@@ -11888,7 +12267,9 @@ pub struct AlterUserAddMfaMethodOtp {
 /// ```sql
 /// ALTER USER [ IF EXISTS ] [ <name> ] MODIFY MFA METHOD <mfa_method> SET COMMENT = '<string>'
 /// ```
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct AlterUserModifyMfaMethod {
@@ -11899,7 +12280,9 @@ pub struct AlterUserModifyMfaMethod {
 }
 
 /// Types of MFA methods
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub enum MfaMethodKind {
@@ -11924,7 +12307,9 @@ impl fmt::Display for MfaMethodKind {
 /// ```sql
 /// ALTER USER [ IF EXISTS ] [ <name> ] SET { AUTHENTICATION | PASSWORD | SESSION } POLICY <policy_name>
 /// ```
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct AlterUserSetPolicy {
@@ -11935,7 +12320,9 @@ pub struct AlterUserSetPolicy {
 }
 
 /// Types of user-based policies
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub enum UserPolicyKind {
@@ -12047,7 +12434,9 @@ impl fmt::Display for AlterUser {
 /// ```sql
 /// ALTER USER <role_specification> [ WITH ] PASSWORD { 'password' | NULL }``
 /// ```
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct AlterUserPassword {
@@ -12075,7 +12464,9 @@ impl Display for AlterUserPassword {
 /// '''sql
 /// CREATE TABLE new LIKE old ...
 /// '''
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub enum CreateTableLikeKind {
@@ -12112,7 +12503,9 @@ impl fmt::Display for CreateTableLikeDefaults {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 /// Represents the `LIKE` clause of a `CREATE TABLE` statement.
@@ -12186,7 +12579,9 @@ impl fmt::Display for InitializeKind {
 /// VACUUM [ FULL | SORT ONLY | DELETE ONLY | REINDEX | RECLUSTER ] [ \[ table_name \] [ TO threshold PERCENT ] \[ BOOST \] ]
 /// '''
 /// [Redshift](https://docs.aws.amazon.com/redshift/latest/dg/r_VACUUM_command.html)
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct VacuumStatement {
@@ -12233,7 +12628,9 @@ impl fmt::Display for VacuumStatement {
 }
 
 /// Variants of the RESET statement
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub enum Reset {
@@ -12251,7 +12648,9 @@ pub enum Reset {
 /// ```sql
 /// RESET { ALL | SESSION AUTHORIZATION | <configuration_parameter> }
 /// ```
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct ResetStatement {
@@ -12264,7 +12663,9 @@ pub struct ResetStatement {
 /// the corresponding statements.
 ///
 /// See [Select::optimizer_hints]
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct OptimizerHint {
@@ -12285,7 +12686,9 @@ pub struct OptimizerHint {
 }
 
 /// The commentary style of an [optimizer hint](OptimizerHint)
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub enum OptimizerHintStyle {

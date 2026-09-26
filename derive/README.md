@@ -200,6 +200,19 @@ impl sqlparser::ast::VisitMut for ShowStatementIn {
 }
 ```
 
+## Shared standard derives
+
+`SharedDebug`, `SharedClone`, `SharedPartialEq`, `SharedPartialOrd`, `SharedOrd` and `SharedHash` behave exactly like the standard derives. The standard derives mark their methods `#[inline]`, so every crate that uses an AST type compiles its own copy of each impl, and LTO does not merge the copies. The `Shared` versions leave out `#[inline]`, so every crate links to the one copy in sqlparser. `SharedHash` sends every hasher through one `&mut dyn Hasher` instantiation.
+
+sqlparser uses them on AST types that are not `Copy`. `Copy` types keep the standard derives, which are small and let constants of those types be used in patterns.
+
+```rust
+#[derive(SharedDebug, SharedClone, SharedPartialEq, Eq, SharedPartialOrd, SharedOrd, SharedHash)]
+pub struct Foo {
+    bar: Vec<Bar>,
+}
+```
+
 ## Releasing
 
 This crate's release is not automated. Instead it is released manually as needed

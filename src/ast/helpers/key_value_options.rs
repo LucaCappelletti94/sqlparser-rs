@@ -22,6 +22,9 @@
 use alloc::{boxed::Box, string::String, vec::Vec};
 use core::fmt;
 use core::fmt::Formatter;
+use sqlparser_derive::{
+    SharedClone, SharedDebug, SharedHash, SharedOrd, SharedPartialEq, SharedPartialOrd,
+};
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
@@ -31,7 +34,9 @@ use sqlparser_derive::{Visit, VisitMut};
 
 use crate::ast::{display_comma_separated, display_separated, ValueWithSpan};
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, Eq, SharedPartialOrd, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 /// A collection of key-value options.
@@ -42,7 +47,9 @@ pub struct KeyValueOptions {
     pub delimiter: KeyValueOptionsDelimiter,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, Eq, SharedPartialOrd, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 /// The delimiter used between key-value options.
@@ -53,7 +60,9 @@ pub enum KeyValueOptionsDelimiter {
     Comma,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, Eq, SharedPartialOrd, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 /// A single key-value option.
@@ -69,7 +78,9 @@ pub struct KeyValueOption {
 /// A value can be numeric, boolean, etc. Enum-style values are represented
 /// as Value::Placeholder. For example: MFA_METHOD=SMS will be represented as
 /// `Value::Placeholder("SMS".to_string)`.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, Eq, SharedPartialOrd, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 /// The kind of value for a key-value option.

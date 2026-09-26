@@ -48,8 +48,8 @@ std = []
 recursive-protection = ["std", "recursive"]
 # Enable JSON output in the `cli` example:
 json_example = ["serde_json", "serde"]
-derive-dialect = ["sqlparser_derive"]
-visitor = ["sqlparser_derive"]
+derive-dialect = []
+visitor = []
 
 [dependencies]
 bigdecimal = { version = "0.4.1", features = ["serde"], optional = true }
@@ -61,7 +61,7 @@ serde = { version = "1.0", default-features = false, features = ["derive", "allo
 # of dev-dependencies because of
 # https://github.com/rust-lang/cargo/issues/1596
 serde_json = { version = "1.0", optional = true }
-sqlparser_derive = { version = "0.6.0", path = "derive", optional = true }
+sqlparser_derive = { version = "0.6.0", path = "derive" }
 
 [dev-dependencies]
 simple_logger = "5.0"

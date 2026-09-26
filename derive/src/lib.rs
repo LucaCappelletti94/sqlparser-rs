@@ -19,13 +19,51 @@
 //!
 //! This crate provides:
 //! - [`Visit`] and [`VisitMut`] derive macros for AST traversal.
+//! - `Shared*` versions of the standard derives, which leave out `#[inline]`.
 //! - [`derive_dialect!`] macro for creating custom SQL dialects.
 
 use quote::quote;
 use syn::parse_macro_input;
 
 mod dialect;
+mod shared;
 mod visit;
+
+/// `Clone` without `#[inline]`.
+#[proc_macro_derive(SharedClone)]
+pub fn derive_shared_clone(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    shared::derive_clone(parse_macro_input!(input as syn::DeriveInput)).into()
+}
+
+/// `Debug` without `#[inline]`.
+#[proc_macro_derive(SharedDebug)]
+pub fn derive_shared_debug(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    shared::derive_debug(parse_macro_input!(input as syn::DeriveInput)).into()
+}
+
+/// `PartialEq` without `#[inline]`.
+#[proc_macro_derive(SharedPartialEq)]
+pub fn derive_shared_partial_eq(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    shared::derive_partial_eq(parse_macro_input!(input as syn::DeriveInput)).into()
+}
+
+/// `PartialOrd` without `#[inline]`.
+#[proc_macro_derive(SharedPartialOrd)]
+pub fn derive_shared_partial_ord(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    shared::derive_partial_ord(parse_macro_input!(input as syn::DeriveInput)).into()
+}
+
+/// `Ord` without `#[inline]`.
+#[proc_macro_derive(SharedOrd)]
+pub fn derive_shared_ord(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    shared::derive_ord(parse_macro_input!(input as syn::DeriveInput)).into()
+}
+
+/// `Hash` that feeds every hasher through one `&mut dyn Hasher` instantiation.
+#[proc_macro_derive(SharedHash)]
+pub fn derive_shared_hash(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    shared::derive_hash(parse_macro_input!(input as syn::DeriveInput)).into()
+}
 
 /// Implementation of `#[derive(VisitMut)]`
 #[proc_macro_derive(VisitMut, attributes(visit))]
