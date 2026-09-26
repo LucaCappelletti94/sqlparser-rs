@@ -17,6 +17,9 @@
 
 #[cfg(not(feature = "std"))]
 use alloc::{boxed::Box, format, string::ToString, vec::Vec};
+use sqlparser_derive::{
+    SharedClone, SharedDebug, SharedHash, SharedOrd, SharedPartialEq, SharedPartialOrd,
+};
 
 use core::fmt::{self, Display};
 #[cfg(feature = "serde")]
@@ -38,7 +41,9 @@ use super::{
 };
 
 /// INSERT statement.
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct Insert {
@@ -295,7 +300,9 @@ impl Display for Insert {
 }
 
 /// DELETE statement.
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct Delete {
@@ -380,7 +387,9 @@ impl Display for Delete {
 }
 
 /// UPDATE statement.
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct Update {
@@ -470,7 +479,9 @@ impl Display for Update {
 }
 
 /// A `MERGE` statement.
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct Merge {
@@ -526,7 +537,9 @@ impl Display for Merge {
 /// ```
 /// [Snowflake](https://docs.snowflake.com/en/sql-reference/sql/merge)
 /// [BigQuery](https://cloud.google.com/bigquery/docs/reference/standard-sql/dml-syntax#merge_statement)
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct MergeClause {
@@ -604,7 +617,9 @@ impl Display for MergeClauseKind {
 /// [Snowflake](https://docs.snowflake.com/en/sql-reference/sql/merge)
 /// [BigQuery](https://cloud.google.com/bigquery/docs/reference/standard-sql/dml-syntax#merge_statement)
 /// [Oracle](https://docs.oracle.com/en/database/oracle/oracle-database/21/sqlrf/MERGE.html)
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub enum MergeAction {
@@ -659,7 +674,9 @@ impl Display for MergeAction {
 ///
 /// [Snowflake](https://docs.snowflake.com/en/sql-reference/sql/merge)
 /// [BigQuery](https://cloud.google.com/bigquery/docs/reference/standard-sql/dml-syntax#merge_statement)
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub enum MergeInsertKind {
@@ -715,7 +732,9 @@ impl Display for MergeInsertKind {
 /// [Snowflake](https://docs.snowflake.com/en/sql-reference/sql/merge)
 /// [BigQuery](https://cloud.google.com/bigquery/docs/reference/standard-sql/dml-syntax#merge_statement)
 /// [Oracle](https://docs.oracle.com/en/database/oracle/oracle-database/21/sqlrf/MERGE.html)
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct MergeInsertExpr {
@@ -751,7 +770,9 @@ impl Display for MergeInsertExpr {
 }
 
 /// The kind of update used within a `MERGE` statement.
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub enum MergeUpdateKind {
@@ -797,7 +818,9 @@ impl Display for MergeUpdateKind {
 /// [BigQuery](https://cloud.google.com/bigquery/docs/reference/standard-sql/dml-syntax#merge_statement)
 /// [Oracle](https://docs.oracle.com/en/database/oracle/oracle-database/21/sqlrf/MERGE.html)
 /// [Databricks](https://docs.databricks.com/en/sql/language-manual/delta-merge-into.html)
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct MergeUpdateExpr {
@@ -829,7 +852,9 @@ impl Display for MergeUpdateExpr {
 /// Example:
 /// OUTPUT $action, deleted.* INTO dbo.temp_products;
 /// <https://learn.microsoft.com/en-us/sql/t-sql/queries/output-clause-transact-sql>
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub enum OutputClause {
@@ -886,7 +911,9 @@ impl fmt::Display for OutputClause {
 ///   INTO t1
 ///   INTO t2 (c1, c2) VALUES (n1, n2)
 /// ```
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct MultiTableInsertWhenClause {
@@ -913,7 +940,9 @@ impl Display for MultiTableInsertWhenClause {
 /// ```sql
 /// INTO <target_table> [ ( <target_col_name> [ , ... ] ) ] [ VALUES ( { <source_col_name> | DEFAULT | NULL } [ , ... ] ) ]
 /// ```
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct MultiTableInsertIntoClause {
@@ -939,7 +968,9 @@ impl Display for MultiTableInsertIntoClause {
 }
 
 /// The VALUES clause in a multi-table INSERT INTO clause.
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct MultiTableInsertValues {
@@ -948,7 +979,9 @@ pub struct MultiTableInsertValues {
 }
 
 /// A value in a multi-table INSERT VALUES clause.
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub enum MultiTableInsertValue {
@@ -970,7 +1003,9 @@ impl Display for MultiTableInsertValue {
 /// The type of multi-table INSERT statement(Snowflake).
 ///
 /// See: <https://docs.snowflake.com/en/sql-reference/sql/insert-multi-table>
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(
+    SharedDebug, SharedClone, SharedPartialEq, SharedPartialOrd, Eq, SharedOrd, SharedHash,
+)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub enum MultiTableInsertType {

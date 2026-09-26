@@ -82,6 +82,15 @@ fn basic_queries(c: &mut Criterion) {
             let _formatted_query = large_statement.to_string();
         });
     });
+
+    group.bench_function("clone_large_statement", |b| {
+        b.iter(|| std::hint::black_box(&large_statement).clone());
+    });
+
+    let copy = large_statement.clone();
+    group.bench_function("eq_large_statement", |b| {
+        b.iter(|| std::hint::black_box(&large_statement) == std::hint::black_box(&copy));
+    });
 }
 
 /// Benchmark comparing `to_ident(&self)` vs `clone().into_ident(self)`.

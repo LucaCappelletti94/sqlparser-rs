@@ -18,6 +18,7 @@
 use core::cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd};
 use core::fmt::{self, Debug, Formatter};
 use core::hash::{Hash, Hasher};
+use sqlparser_derive::SharedClone;
 
 use crate::tokenizer::TokenWithSpan;
 
@@ -77,7 +78,7 @@ use sqlparser_derive::{Visit, VisitMut};
 /// assert_eq!(AttachedToken(tok1), AttachedToken(tok2)); // attached tokens are
 /// ```
 /// // period @ line 2, column 20
-#[derive(Clone)]
+#[derive(SharedClone)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct AttachedToken(pub TokenWithSpan);

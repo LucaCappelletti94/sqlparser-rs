@@ -17,6 +17,7 @@
 
 #[cfg(not(feature = "std"))]
 use alloc::{boxed::Box, format, string::String, vec, vec::Vec};
+use sqlparser_derive::{SharedClone, SharedDebug, SharedHash, SharedPartialEq};
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
@@ -61,7 +62,7 @@ use crate::parser::ParserError;
 /// ```
 ///
 /// [1]: crate::ast::Statement::CreateTable
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(SharedDebug, SharedClone, SharedPartialEq, Eq, SharedHash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub struct CreateTableBuilder {
