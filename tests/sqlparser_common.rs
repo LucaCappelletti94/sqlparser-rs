@@ -15970,11 +15970,12 @@ fn test_alter_policy() {
 #[test]
 fn test_alter_trigger() {
     match verified_stmt("ALTER TRIGGER old_trigger ON my_table RENAME TO new_trigger") {
-        Statement::AlterTrigger(AlterTrigger {
-            name,
-            table_name,
-            operation,
-        }) => {
+        Statement::AlterTrigger(alter_trigger) => {
+            let AlterTrigger {
+                name,
+                table_name,
+                operation,
+            } = *alter_trigger;
             assert_eq!(name.to_string(), "old_trigger");
             assert_eq!(table_name.to_string(), "my_table");
             assert_eq!(
@@ -15988,7 +15989,8 @@ fn test_alter_trigger() {
     }
 
     match verified_stmt("ALTER TRIGGER my_trigger ON my_table DEPENDS ON EXTENSION my_extension") {
-        Statement::AlterTrigger(AlterTrigger { operation, .. }) => {
+        Statement::AlterTrigger(alter_trigger) => {
+            let operation = alter_trigger.operation;
             assert_eq!(
                 operation,
                 AlterTriggerOperation::DependsOnExtension {
@@ -16002,7 +16004,8 @@ fn test_alter_trigger() {
 
     match verified_stmt("ALTER TRIGGER my_trigger ON my_table NO DEPENDS ON EXTENSION my_extension")
     {
-        Statement::AlterTrigger(AlterTrigger { operation, .. }) => {
+        Statement::AlterTrigger(alter_trigger) => {
+            let operation = alter_trigger.operation;
             assert_eq!(
                 operation,
                 AlterTriggerOperation::DependsOnExtension {
@@ -21647,15 +21650,16 @@ fn parse_stage_table_factor() {
 fn parse_create_rule() {
     let sql = "CREATE RULE r AS ON DELETE TO docs DO INSTEAD NOTHING";
     match all_dialects().verified_stmt(sql) {
-        Statement::CreateRule(CreateRule {
-            or_replace,
-            name,
-            event,
-            table_name,
-            condition,
-            do_kind,
-            action,
-        }) => {
+        Statement::CreateRule(rule) => {
+            let CreateRule {
+                or_replace,
+                name,
+                event,
+                table_name,
+                condition,
+                do_kind,
+                action,
+            } = *rule;
             assert!(!or_replace);
             assert_eq!(name.to_string(), "r");
             assert_eq!(event, CreateRuleEvent::Delete);
@@ -21714,11 +21718,12 @@ fn parse_create_rule() {
 #[test]
 fn parse_create_rule_action_boundaries() {
     let dialects = all_dialects();
-    let Statement::CreateRule(CreateRule {
-        action: CreateRuleAction::Statements(commands),
-        ..
-    }) = dialects.verified_stmt("CREATE RULE r AS ON INSERT TO t DO ()")
+    let Statement::CreateRule(rule) =
+        dialects.verified_stmt("CREATE RULE r AS ON INSERT TO t DO ()")
     else {
+        panic!("expected a rule");
+    };
+    let CreateRuleAction::Statements(commands) = rule.action else {
         panic!("expected a rule with a command list");
     };
     assert!(commands.is_empty());
@@ -22465,7 +22470,7 @@ fn parse_cache_table_options_without_flag() {
         };
         assert_eq!(
             dialects.verified_stmt(&format!("CACHE TABLE t OPTIONS('k' = 'v'){suffix}")),
-            Statement::Cache {
+            Statement::Cache(Box::new(Cache {
                 table_flag: None,
                 table_name: ObjectName::from(vec![Ident::new("t")]),
                 has_as,
@@ -22474,7 +22479,7 @@ fn parse_cache_table_options_without_flag() {
                     value: Expr::Value(Value::SingleQuotedString("v".into()).with_empty_span()),
                 }],
                 query,
-            }
+            }))
         );
     }
 }
@@ -22753,12 +22758,12 @@ fn parse_grant_role() {
     let sql = "GRANT bypasser, auditor TO anon, authenticated GRANTED BY admin";
     assert_eq!(
         all_dialects().verified_stmt(sql),
-        Statement::GrantRole(GrantRole {
+        Statement::GrantRole(Box::new(GrantRole {
             roles: vec![Ident::new("bypasser"), Ident::new("auditor")],
             grantees: vec![role_grantee("anon"), role_grantee("authenticated")],
             options: vec![],
             granted_by: Some(Ident::new("admin")),
-        })
+        }))
     );
 
     all_dialects().verified_stmt("GRANT bypasser TO anon");
@@ -22819,9 +22824,10 @@ fn display_grant_role_propagates_formatter_errors() {
 #[test]
 fn parse_grant_role_options() {
     let sql = "GRANT bypasser TO anon WITH ADMIN OPTION, INHERIT FALSE, SET TRUE GRANTED BY admin";
-    let Statement::GrantRole(GrantRole { options, .. }) = all_dialects().verified_stmt(sql) else {
+    let Statement::GrantRole(grant) = all_dialects().verified_stmt(sql) else {
         panic!("Expected GRANT role");
     };
+    let options = grant.options;
     assert_eq!(
         options,
         vec![
@@ -22884,7 +22890,7 @@ fn parse_revoke_role() {
     let sql = "REVOKE bypasser, auditor FROM anon GRANTED BY admin CASCADE";
     assert_eq!(
         all_dialects().verified_stmt(sql),
-        Statement::RevokeRole(RevokeRole {
+        Statement::RevokeRole(Box::new(RevokeRole {
             option_for: None,
             roles: vec![Ident::new("bypasser"), Ident::new("auditor")],
             grantees: vec![Grantee {
@@ -22895,7 +22901,7 @@ fn parse_revoke_role() {
             }],
             granted_by: Some(Ident::new("admin")),
             cascade: Some(CascadeOption::Cascade),
-        })
+        }))
     );
 
     all_dialects().verified_stmt("REVOKE bypasser FROM anon RESTRICT");
@@ -22973,12 +22979,12 @@ fn display_revoke_role_propagates_write_errors() {
 
 #[test]
 fn parse_revoke_role_option_for() {
-    let Statement::RevokeRole(RevokeRole { option_for, .. }) =
+    let Statement::RevokeRole(revoke) =
         all_dialects().verified_stmt("REVOKE SET OPTION FOR bypasser FROM anon")
     else {
         panic!("Expected REVOKE role");
     };
-    assert_eq!(option_for, Some(Ident::new("SET")));
+    assert_eq!(revoke.option_for, Some(Ident::new("SET")));
 
     all_dialects()
         .verified_stmt("REVOKE ADMIN OPTION FOR bypasser FROM anon GRANTED BY admin RESTRICT");
@@ -23073,7 +23079,7 @@ fn parse_grantee_after_public() {
 fn parse_create_procedure_empty_parameter_list() {
     verified_stmt("CREATE PROCEDURE p () AS BEGIN SELECT 1; END");
     match verified_stmt("CREATE PROCEDURE p AS BEGIN SELECT 1; END") {
-        Statement::CreateProcedure { params, .. } => assert_eq!(params, None),
+        Statement::CreateProcedure(create_procedure) => assert_eq!(create_procedure.params, None),
         stmt => panic!("unexpected statement: {stmt:?}"),
     }
 }
